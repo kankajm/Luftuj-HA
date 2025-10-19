@@ -1,0 +1,9 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+
+set -euo pipefail
+
+bashio::log.info "Starting Luftujha backend"
+
+cd /usr/src/app
+exec uvicorn app.main:app --host 0.0.0.0 --port 8099
