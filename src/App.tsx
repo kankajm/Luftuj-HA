@@ -49,22 +49,32 @@ const theme = createTheme({
   },
 })
 
-const apiBaseUrl = (() => {
+const apiBase = (() => {
   const override = import.meta.env.VITE_API_BASE_URL as string | undefined
-  if (override) {
+  const allowOverride = import.meta.env.DEV && override
+  if (allowOverride) {
     try {
-      return new URL(override).toString()
+      const parsed = new URL(override as string, window.location.origin)
+      if (!parsed.pathname.endsWith('/')) {
+        parsed.pathname += '/'
+      }
+      return parsed
     } catch (error) {
-      console.warn('Invalid VITE_API_BASE_URL, falling back to window location', error)
+      console.warn('Invalid VITE_API_BASE_URL, falling back to ingress location', error)
     }
   }
-  return `${window.location.origin}/`
+
+  const current = new URL(window.location.href)
+  if (!current.pathname.endsWith('/')) {
+    current.pathname += '/'
+  }
+  return current
 })()
 
-const resolveHttpUrl = (path: string) => new URL(path, apiBaseUrl).toString()
+const resolveHttpUrl = (path: string) => new URL(path, apiBase).toString()
 
 const websocketUrl = (path: string) => {
-  const url = new URL(path, apiBaseUrl)
+  const url = new URL(path, apiBase)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
   return url.toString()
 }

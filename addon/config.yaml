@@ -4,9 +4,11 @@ slug: luftuj
 description: Luftuj Home Assistant Add-on
 url: https://github.com/kankajm/Luftuj-HA
 arch:
+  - armhf
   - aarch64
   - amd64
   - armv7
+  - i386
 init: false
 startup: services
 homeassistant_api: true
@@ -14,8 +16,17 @@ hassio_api: true
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:valve
-discovery: []
+map:
+  - share:rw
+  - config:rw
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: Frontend HTTP port
 options:
   log_level: info
+  web_port: 8099
 schema:
   log_level: list(trace|debug|info|notice|warning|error|fatal)
+  web_port: port(1024,65535)
+image: "ghcr.io/kankajm/{arch}-addon-luftujha"

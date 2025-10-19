@@ -5,5 +5,10 @@ set -euo pipefail
 
 bashio::log.info "Starting Luftujha backend"
 
+PORT=$(bashio::config 'web_port')
+if [ -z "${PORT}" ] || [ "${PORT}" = "null" ]; then
+  PORT=8099
+fi
+
 cd /usr/src/app
-exec uvicorn app.main:app --host 0.0.0.0 --port 8099
+exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT}"

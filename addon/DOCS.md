@@ -51,7 +51,7 @@ uvicorn app.main:app --reload
 - `HA_TOKEN` must be a valid long-lived access token when the Supervisor token is not available.
 - `STATIC_ROOT` can reference your local `dist/` folder if you want the backend to serve the React build.
 
-For the React dev server, set `VITE_API_BASE_URL` so API/WebSocket calls reach the locally running backend:
+For the React dev server, set `VITE_API_BASE_URL` (only respected in development builds) so API/WebSocket calls reach the locally running backend:
 
 ```
 VITE_API_BASE_URL=http://localhost:8000/ npm run dev

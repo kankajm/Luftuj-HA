@@ -23,6 +23,7 @@ class Options(BaseModel):
     log_level: str = Field(default="info")
     ha_base_url: Optional[str] = None
     ha_token: Optional[str] = None
+    web_port: int = Field(default=8099)
 
 
 @lru_cache(maxsize=1)
@@ -39,6 +40,12 @@ def get_log_level() -> str:
     """Return the configured log level."""
 
     return get_options().log_level
+
+
+def get_web_port() -> int:
+    """Return the configured web server port."""
+
+    return get_options().web_port
 
 
 def get_ha_base_url() -> Optional[str]:

@@ -10,13 +10,14 @@ from typing import Any
 
 import contextlib
 
-from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .ha_client import HomeAssistantClient
 from .settings import get_log_level, get_ha_base_url, get_ha_token
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 LOGGER = logging.getLogger(__name__)
 
@@ -120,7 +121,25 @@ def create_app() -> FastAPI:
 
     static_root = os.getenv("STATIC_ROOT", "/usr/share/luftujha/www")
     if os.path.isdir(static_root):
-        app.mount("/", StaticFiles(directory=static_root, html=True), name="static")
+        assets_dir = os.path.join(static_root, "assets")
+        if os.path.isdir(assets_dir):
+            app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+        index_path = os.path.join(static_root, "index.html")
+
+        @app.get("/", response_class=HTMLResponse)
+        async def root_page() -> HTMLResponse:
+            with open(index_path, "r", encoding="utf-8") as index_file:
+                return HTMLResponse(index_file.read())
+
+        @app.exception_handler(StarletteHTTPException)
+        async def spa_fallback(request: Request, exc: StarletteHTTPException) -> JSONResponse | HTMLResponse:
+            if exc.status_code == 404 and request.method == "GET":
+                path = request.url.path.lstrip("/")
+                if not path.startswith("api/") and not path.startswith("ws/") and not path.startswith("assets/"):
+                    with open(index_path, "r", encoding="utf-8") as index_file:
+                        return HTMLResponse(index_file.read())
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
     @app.on_event("startup")
     async def _startup() -> None:  # pragma: no cover
