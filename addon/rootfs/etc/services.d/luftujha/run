@@ -11,4 +11,4 @@ if [ -z "${PORT}" ] || [ "${PORT}" = "null" ]; then
 fi
 
 cd /usr/src/app
-exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT}"
+PORT="${PORT}" exec bun run src/server.ts

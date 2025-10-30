@@ -4,7 +4,7 @@ build_from:
   armv7: ghcr.io/home-assistant/armv7-base:3.19
   i386: ghcr.io/home-assistant/i386-base:3.19
 labels:
-  org.opencontainers.image.title: "Luftuj"
-  org.opencontainers.image.description: "Luftuj Home Assistant Add-on"
+  org.opencontainers.image.title: "Luftator"
+  org.opencontainers.image.description: "Luftuj's Luftator Home Assistant add-on"
   org.opencontainers.image.licenses: "MIT"
   org.opencontainers.image.source: "https://github.com/kankajm/Luftuj-HA"

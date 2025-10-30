@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Luftator Home Assistant Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript UI delivered by **Luftuj** for managing **Luftator** ventilation valves. One Home Assistant instance can supervise multiple Luftator controllers through this add-on. The application is built with Vite and Mantine, and is now completely driven by **Bun** for dependency management and scripts.
 
-Currently, two official plugins are available:
+## Prerequisites
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- [Bun 1.1.26+](https://bun.sh/) (installs dependencies and runs scripts)
+- Node.js is no longer required for the frontend workflow
 
-## React Compiler
+## Quick start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+bun install          # install dependencies and create bun.lockb
+bun run dev          # start Vite dev server on http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Scripts
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `bun run dev` – start the Vite dev server with HMR.
+- `bun run build` – type-check (`tsc -b`) and build production assets.
+- `bun run lint` – run ESLint across the project.
+- `bun run preview` – preview the production build locally.
+- `bun run build:addon` – run the production build and sync the output into `addon/rootfs/usr/share/luftujha/www/` for the Home Assistant add-on package.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Syncing assets to the add-on
+
+`bun run build:addon` invokes `scripts/sync-dist.mjs` via Bun to mirror `dist/` into the add-on rootfs. The script will fail if you forget to run `bun run build` first, so this command combines both steps automatically.
+
+## Home Assistant notes
+
+- The add-on backend (stored under `addon/rootfs/usr/src/app/`) already runs on Bun inside the Supervisor container.
+- When testing locally, run the backend with `bun run dev` inside that directory and point the frontend to the exposed API using `VITE_API_BASE_URL`.
+- For Home Assistant packaging, run `bun run build:addon`, copy the `addon/` folder into your `/addons` share, and rebuild the add-on via the Supervisor UI.
+
+## Linting & formatting
+
+ESLint configuration lives in `eslint.config.js`. Run `bun run lint` to ensure the codebase passes all checks before syncing to the add-on.
+
+## Troubleshooting
+
+- Missing styles? Ensure `src/main.tsx` imports `@mantine/core/styles.css` and rebuild.
+- If you see stale assets in Home Assistant, re-run `bun run build:addon` and rebuild the add-on image.
+

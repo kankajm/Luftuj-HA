@@ -28,5 +28,6 @@ options:
   web_port: 8099
 schema:
   log_level: list(trace|debug|info|notice|warning|error|fatal)
-  web_port: port(1024,65535)
-image: "ghcr.io/kankajm/{arch}-addon-luftujha"
+  web_port: int(1024,65535)
+# TODO: Přidat až bude image existovat
+#image: "ghcr.io/kankajm/{arch}-addon-luftujha"
