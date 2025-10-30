@@ -281,24 +281,27 @@ export const ValvesPage = () => {
   const handleCloseError = useCallback(() => setError(null), [])
 
   return (
-    <Container size="xl">
+    <Container size="xl" px={{ base: 'sm', sm: 'md' }}>
       <Stack gap="lg">
-        <Group justify="space-between" align="center">
-          <Stack gap={0}>
-            <Title order={3}>Luftator Zones</Title>
-            <Text size="sm" c="dimmed">
-              Control Luftator valve actuators installed by Luftuj across each room.
-            </Text>
-          </Stack>
-          <ActionIcon
-            variant="light"
-            color="blue"
-            onClick={fetchSnapshot}
-            aria-label="Refresh valves"
-          >
-            <IconRefresh size={20} stroke={1.8} />
-          </ActionIcon>
-        </Group>
+        <Stack gap="sm">
+          <Group justify="space-between" align="flex-start" gap="sm" wrap="wrap">
+            <Stack gap={2} style={{ minWidth: 0 }}>
+              <Title order={3}>Luftator Zones</Title>
+              <Text size="sm" c="dimmed">
+                Control Luftator valve actuators installed by Luftuj across each room.
+              </Text>
+            </Stack>
+            <ActionIcon
+              variant="light"
+              color="blue"
+              onClick={fetchSnapshot}
+              aria-label="Refresh valves"
+              size="lg"
+            >
+              <IconRefresh size={20} stroke={1.8} />
+            </ActionIcon>
+          </Group>
+        </Stack>
 
         {error ? (
           <Alert
