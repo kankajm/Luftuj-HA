@@ -25,7 +25,13 @@ export const SettingsPage = () => {
       logger.info('Exporting database via frontend action')
       const response = await logger.timeAsync('settings.exportDatabase', async () => fetch('/api/database/export'))
       if (!response.ok) {
-        throw new Error(`Export failed: ${response.statusText}`)
+        const message = `Export failed: ${response.statusText}`
+        setError(message)
+        logger.error('Database export failed', {
+          status: response.status,
+          statusText: response.statusText,
+        })
+        return
       }
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
@@ -65,7 +71,14 @@ export const SettingsPage = () => {
 
       if (!response.ok) {
         const text = await response.text()
-        throw new Error(text || 'Import failed')
+        const detail = text || 'Import failed'
+        setError(detail)
+        logger.error('Database import failed with non-OK response', {
+          status: response.status,
+          statusText: response.statusText,
+          detail,
+        })
+        return
       }
 
       setMessage('Database imported successfully. Refresh the page to load new data.')

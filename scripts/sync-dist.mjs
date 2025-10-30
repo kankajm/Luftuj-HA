@@ -1,8 +1,6 @@
-#!/usr/bin/env node
 import { access, cp, mkdir, rm } from 'fs/promises'
 import { constants } from 'fs'
 import path from 'path'
-import process from 'process'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)

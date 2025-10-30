@@ -18,6 +18,38 @@ export interface HassStateChangedEvent {
 
 export type HassEventHandler = (event: HassStateChangedEvent) => Promise<void> | void;
 
+interface HassStateChangeData {
+  entity_id?: string;
+  new_state?: HassState | null;
+  old_state?: HassState | null;
+}
+
+interface HassEventEnvelope {
+  data?: HassStateChangeData;
+}
+
+type HassWebSocketAuthRequiredMessage = { type: "auth_required" };
+type HassWebSocketAuthOkMessage = { type: "auth_ok" };
+type HassWebSocketAuthInvalidMessage = { type: "auth_invalid" };
+type HassWebSocketEventMessage = { type: "event"; event: HassEventEnvelope };
+type KnownHassMessageType = HassWebSocketAuthRequiredMessage["type"] | HassWebSocketAuthOkMessage["type"] | HassWebSocketAuthInvalidMessage["type"] | HassWebSocketEventMessage["type"];
+type HassWebSocketUnknownMessage = { type: Exclude<string, KnownHassMessageType>; [key: string]: unknown };
+
+type HassWebSocketMessage =
+  | HassWebSocketAuthRequiredMessage
+  | HassWebSocketAuthOkMessage
+  | HassWebSocketAuthInvalidMessage
+  | HassWebSocketEventMessage
+  | HassWebSocketUnknownMessage;
+
+const hasTypeProperty = (value: unknown): value is { type: string } =>
+  typeof value === "object" && value !== null && "type" in value && typeof (value as { type: unknown }).type === "string";
+
+const isHassWebSocketMessage = (value: unknown): value is HassWebSocketMessage => hasTypeProperty(value);
+
+const isEventMessage = (message: HassWebSocketMessage): message is HassWebSocketEventMessage =>
+  message.type === "event" && typeof message === "object" && true && "event" in message;
+
 const LUFTATOR_ENTITY_PREFIX = "number.luftator_";
 const STATE_CHANGED_EVENT = "state_changed";
 const RECONNECT_DELAY_MS = 5_000;
@@ -66,7 +98,6 @@ export class HomeAssistantClient {
     let active = true;
     let socket: WebSocket | null = null;
     let reconnectTimer: NodeJS.Timeout | null = null;
-    let subscriptionId = 1;
 
     const websocketUrl = this.toWebSocketUrl("/api/websocket");
 
@@ -115,8 +146,12 @@ export class HomeAssistantClient {
 
       socket.on("message", (data) => {
         try {
-          const payload = JSON.parse(data.toString()) as Record<string, any>;
-          this.handleWebSocketMessage(payload, socket!, handler);
+          const payload = JSON.parse(data.toString()) as unknown;
+          if (isHassWebSocketMessage(payload)) {
+            this.handleWebSocketMessage(payload, socket!, handler);
+          } else {
+            this.logger.warn({ payload }, "Ignoring unexpected Home Assistant WebSocket payload");
+          }
         } catch (error) {
           this.logger.error({ error }, "Failed to process Home Assistant WebSocket message");
         }
@@ -141,7 +176,7 @@ export class HomeAssistantClient {
     };
   }
 
-  private handleWebSocketMessage(message: Record<string, any>, socket: WebSocket, handler: HassEventHandler): void {
+  private handleWebSocketMessage(message: HassWebSocketMessage, socket: WebSocket, handler: HassEventHandler): void {
     switch (message.type) {
       case "auth_required":
         socket.send(JSON.stringify({ type: "auth", access_token: this.token }));
@@ -160,14 +195,18 @@ export class HomeAssistantClient {
         socket.close(1011, "auth_failed");
         break;
       case "event":
-        this.processEvent(message.event, handler);
+        if (isEventMessage(message)) {
+          this.processEvent(message.event, handler);
+        } else {
+          this.logger.warn({ message }, "Ignored event message without payload");
+        }
         break;
       default:
         break;
     }
   }
 
-  private processEvent(eventPayload: Record<string, any>, handler: HassEventHandler): void {
+  private processEvent(eventPayload: HassEventEnvelope | undefined, handler: HassEventHandler): void {
     if (!eventPayload) {
       return;
     }

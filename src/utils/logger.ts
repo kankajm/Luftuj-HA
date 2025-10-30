@@ -58,14 +58,6 @@ export const logger = {
   info: (message: string, meta?: LogMeta) => log('info', message, meta),
   warn: (message: string, meta?: LogMeta) => log('warn', message, meta),
   error: (message: string, meta?: LogMeta) => log('error', message, meta),
-  time<T>(label: string, fn: () => T, meta?: LogMeta): T {
-    const start = now()
-    try {
-      return fn()
-    } finally {
-      log('debug', `${label} completed`, { ...meta, durationMs: formatDuration(start) })
-    }
-  },
   async timeAsync<T>(label: string, fn: () => Promise<T>, meta?: LogMeta): Promise<T> {
     const start = now()
     try {
@@ -78,5 +70,3 @@ export const logger = {
     }
   },
 }
-
-export type AppLogger = typeof logger
