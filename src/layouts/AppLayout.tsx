@@ -1,10 +1,11 @@
 import { Anchor, AppShell, Button, Drawer, Group, Image, Stack, Text, Title, Burger, rem } from '@mantine/core'
-import { IconAt, IconPhone, IconTopologyStar3 } from '@tabler/icons-react'
+import { IconAt, IconPhone } from '@tabler/icons-react'
 import { Link, Outlet } from '@tanstack/react-router'
 import { useDisclosure } from '@mantine/hooks'
 import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
-import logoFull from '../assets/logo-big-with-text.png'
+import logoFull from '../assets/logo-big-with-text.svg'
+import logoMark from '../assets/logo.svg'
 
 export const AppLayout = () => {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false)
@@ -57,8 +58,8 @@ export const AppLayout = () => {
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Group gap="sm" align="center" wrap="nowrap">
-            <IconTopologyStar3 size={24} stroke={1.5} />
+          <Group gap="xs" align="center" wrap="nowrap">
+            <Image src={logoMark} alt={t('app.title')} h={28} w={28} fit="contain" />
             <Title order={3} fw={600} ff="inherit" size={rem(20)}>
               {t('app.title')}
             </Title>

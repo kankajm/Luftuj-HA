@@ -2,7 +2,7 @@
   "app": {
     "title": "Luftator Control",
     "nav": {
-      "dashboard": "Dashboard",
+      "dashboard": "Přehled",
       "valves": "Ventily",
       "settings": "Nastavení",
       "navigate": "Navigace",
