@@ -2,18 +2,24 @@ import { Anchor, AppShell, Button, Drawer, Group, Image, Stack, Text, Title, Bur
 import { IconAt, IconPhone, IconTopologyStar3 } from '@tabler/icons-react'
 import { Link, Outlet } from '@tanstack/react-router'
 import { useDisclosure } from '@mantine/hooks'
+import { useTranslation } from 'react-i18next'
+import { useMemo } from 'react'
 import logoFull from '../assets/logo-big-with-text.png'
 
 export const AppLayout = () => {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false)
+  const { t } = useTranslation()
 
   const footerLink = import.meta.env.VITE_FOOTER_LINK ?? 'https://www.luftuj.cz/'
 
-  const navItems = [
-    { to: '/', label: 'Dashboard' },
-    { to: '/valves', label: 'Valves' },
-    { to: '/settings', label: 'Settings' },
-  ] as const
+  const navItems = useMemo(
+    () => [
+      { to: '/', label: t('app.nav.dashboard') },
+      { to: '/valves', label: t('app.nav.valves') },
+      { to: '/settings', label: t('app.nav.settings') },
+    ],
+    [t],
+  )
 
   const DesktopNav = () => (
     <Group gap="sm">
@@ -54,7 +60,7 @@ export const AppLayout = () => {
           <Group gap="sm" align="center" wrap="nowrap">
             <IconTopologyStar3 size={24} stroke={1.5} />
             <Title order={3} fw={600} ff="inherit" size={rem(20)}>
-              Luftator Control
+              {t('app.title')}
             </Title>
           </Group>
 
@@ -70,7 +76,7 @@ export const AppLayout = () => {
         opened={mobileNavOpened}
         onClose={close}
         padding="md"
-        title="Navigate"
+        title={t('app.nav.navigate')}
         size="xs"
         hiddenFrom="sm"
       >
@@ -91,33 +97,33 @@ export const AppLayout = () => {
         <Stack gap="sm" justify="space-between" h="100%">
           <Group justify="space-between" align="flex-start" wrap="wrap" gap="lg">
             <Anchor href={footerLink} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Image src={logoFull} alt="Luftuj" h={32} fit="contain" />
+              <Image src={logoFull} alt={t('app.footer.company')} h={32} fit="contain" />
               <Text size="sm" fw={600} c="var(--mantine-color-text)">
-                Luftuj s.r.o.
+                {t('app.footer.company')}
               </Text>
             </Anchor>
 
             <Group gap="md" align="flex-start" wrap="wrap">
               <Stack gap={2}>
                 <Text size="xs" c="dimmed">
-                  T. G. Masaryka 102
+                  {t('app.footer.addressLine1')}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  538 21 Slatiňany
+                  {t('app.footer.addressLine2')}
                 </Text>
               </Stack>
 
               <Stack gap={4}>
                 <Group gap={6} wrap="nowrap">
                   <IconPhone size={14} stroke={1.8} color="#228be6" />
-                  <Anchor href="tel:+420735774074" size="xs" c="blue.5">
-                    +420 735 774 074
+                  <Anchor href={t('app.footer.phoneLink')} size="xs" c="blue.5">
+                    {t('app.footer.phone')}
                   </Anchor>
                 </Group>
                 <Group gap={6} wrap="nowrap">
                   <IconAt size={14} stroke={1.8} color="#228be6" />
-                  <Anchor href="mailto:info@luftuj.cz" size="xs" c="blue.5">
-                    info@luftuj.cz
+                  <Anchor href={t('app.footer.emailLink')} size="xs" c="blue.5">
+                    {t('app.footer.email')}
                   </Anchor>
                 </Group>
               </Stack>

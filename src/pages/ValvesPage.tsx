@@ -11,6 +11,7 @@ import {
   Title,
 } from '@mantine/core'
 import { IconRefresh } from '@tabler/icons-react'
+import { useTranslation } from 'react-i18next'
 
 import { ValveCard } from '../components'
 import { resolveApiUrl, resolveWebSocketUrl } from '../utils/api'
@@ -65,6 +66,8 @@ export const ValvesPage = () => {
     errorHandler: () => void
   } | null>(null)
 
+  const { t } = useTranslation()
+
   const valves = useMemo(() => {
     return Object.values(valveMap).sort((a, b) => a.name.localeCompare(b.name))
   }, [valveMap])
@@ -90,8 +93,8 @@ export const ValvesPage = () => {
       logger.debug('Requesting valve snapshot via REST', { url })
       const response = await logger.timeAsync('valves.fetchSnapshot', async () => fetch(url))
       if (!response.ok) {
-        const message = `Failed to load valves: ${response.statusText}`
-        setError(message)
+        const message = response.statusText || t('valves.errors.loadUnknown')
+        setError(t('valves.errors.load', { message }))
         logger.warn('Valve snapshot request returned non-OK response', {
           status: response.status,
           statusText: response.statusText,
@@ -104,12 +107,13 @@ export const ValvesPage = () => {
       logger.info('Valve snapshot loaded', { count: data.length })
       setError(null)
     } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load valves')
+      const message = fetchError instanceof Error ? fetchError.message : t('valves.errors.loadUnknown')
+      setError(t('valves.errors.load', { message }))
       logger.error('Valve snapshot fetch failed', { error: fetchError })
     } finally {
       setLoading(false)
     }
-  }, [replaceValves])
+  }, [replaceValves, t])
 
   useEffect(() => {
     void fetchSnapshot()
@@ -156,7 +160,8 @@ export const ValvesPage = () => {
           logger.debug('Received websocket valve update', { entityId: (message.payload as HaState).entity_id })
         }
       } catch (wsError) {
-        setError(wsError instanceof Error ? wsError.message : 'WebSocket parse error')
+        const message = wsError instanceof Error ? wsError.message : t('valves.errors.websocket')
+        setError(message)
         logger.error('Failed to parse websocket message', { error: wsError })
       }
     })
@@ -259,8 +264,8 @@ export const ValvesPage = () => {
         body: JSON.stringify({value}),
       })
       if (!response.ok) {
-        const message = `Failed to set value: ${response.statusText}`
-        setError(message)
+        const message = response.statusText || t('valves.errors.setValueUnknown')
+        setError(t('valves.errors.setValue', { message }))
         logger.warn('Valve value update returned non-OK response', {
           entityId,
           status: response.status,
@@ -272,7 +277,8 @@ export const ValvesPage = () => {
       setError(null)
       logger.info('Valve value update acknowledged', { entityId, value })
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Failed to set valve value')
+      const message = requestError instanceof Error ? requestError.message : t('valves.errors.setValueUnknown')
+      setError(t('valves.errors.setValue', { message }))
       logger.error('Valve value update failed', { entityId, value, error: requestError })
       await fetchSnapshot()
     }
@@ -286,16 +292,16 @@ export const ValvesPage = () => {
         <Stack gap="sm">
           <Group justify="space-between" align="flex-start" gap="sm" wrap="wrap">
             <Stack gap={2} style={{ minWidth: 0 }}>
-              <Title order={3}>Luftator Zones</Title>
+              <Title order={3}>{t('valves.title')}</Title>
               <Text size="sm" c="dimmed">
-                Control Luftator valve actuators installed by Luftuj across each room.
+                {t('valves.description')}
               </Text>
             </Stack>
             <ActionIcon
               variant="light"
               color="blue"
               onClick={fetchSnapshot}
-              aria-label="Refresh valves"
+              aria-label={t('valves.refreshAria')}
               size="lg"
             >
               <IconRefresh size={20} stroke={1.8} />
@@ -307,7 +313,7 @@ export const ValvesPage = () => {
           <Alert
             color="red"
             variant="light"
-            title="Error"
+            title={t('valves.alertTitle')}
             withCloseButton
             onClose={handleCloseError}
           >
@@ -321,7 +327,7 @@ export const ValvesPage = () => {
           </Group>
         ) : valves.length === 0 ? (
           <Group justify="center" align="center" h={240}>
-            <Text c="dimmed">No valves found for prefix `number.luftator`.</Text>
+            <Text c="dimmed">{t('valves.empty')}</Text>
           </Group>
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">

@@ -1,12 +1,17 @@
 import { Card, Container, Stack, Text, Title } from '@mantine/core'
+import { useTranslation } from 'react-i18next'
 
-export const DashboardPage = () => (
-  <Container size="xl">
-    <Stack gap="lg">
-      <Title order={2}>Dashboard</Title>
-      <Card shadow="sm" padding="lg" withBorder>
-        <Text c="dimmed">Overview widgets coming soon.</Text>
-      </Card>
-    </Stack>
-  </Container>
-)
+export const DashboardPage = () => {
+  const { t } = useTranslation()
+
+  return (
+    <Container size="xl">
+      <Stack gap="lg">
+        <Title order={2}>{t('dashboard.title')}</Title>
+        <Card shadow="sm" padding="lg" withBorder>
+          <Text c="dimmed">{t('dashboard.placeholder')}</Text>
+        </Card>
+      </Stack>
+    </Container>
+  )
+}

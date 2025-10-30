@@ -1,0 +1,86 @@
+{
+  "app": {
+    "title": "Luftator Control",
+    "nav": {
+      "dashboard": "Dashboard",
+      "valves": "Ventily",
+      "settings": "Nastavení",
+      "navigate": "Navigace",
+      "toggle": "Přepnout navigaci"
+    },
+    "footer": {
+      "company": "Luftuj s.r.o.",
+      "addressLine1": "T. G. Masaryka 102",
+      "addressLine2": "538 21 Slatiňany",
+      "phone": "+420 735 774 074",
+      "phoneLink": "tel:+420735774074",
+      "email": "info@luftuj.cz",
+      "emailLink": "mailto:info@luftuj.cz",
+      "copyright": "© {{year}} Luftuj. Všechna práva vyhrazena."
+    }
+  },
+  "settings": {
+    "title": "Nastavení",
+    "description": "Zálohujte nebo obnovte data Luftatoru spravovaná touto instalací Home Assistant.",
+    "language": {
+      "title": "Jazyk",
+      "description": "Vyberte jazyk uživatelského rozhraní.",
+      "options": {
+        "en": "English",
+        "cs": "Čeština"
+      },
+      "notifications": {
+        "updatedTitle": "Jazyk změněn",
+        "updatedMessage": "Jazyk rozhraní byl nastaven na {{language}}."
+      }
+    },
+    "theme": {
+      "title": "Motiv",
+      "description": "Přepínejte mezi světlým a tmavým vzhledem. Vaše volba se ukládá do tohoto prohlížeče.",
+      "light": "Světlý",
+      "dark": "Tmavý",
+      "notifications": {
+        "updatedTitle": "Motiv změněn",
+        "updatedMessage": "Motiv byl nastaven na {{theme}}.",
+        "failedTitle": "Nepodařilo se uložit motiv",
+        "failedMessage": "{{message}}",
+        "unknown": "Neznámá chyba"
+      }
+    },
+    "database": {
+      "title": "Nástroje databáze",
+      "description": "Export stáhne aktuální SQLite databázi (`/data/luftator.db`). Import nahradí stávající soubor po vytvoření zálohy.",
+      "export": "Exportovat databázi",
+      "import": "Importovat databázi",
+      "importing": "Importuji…",
+      "notifications": {
+        "exportSuccessTitle": "Export dokončen",
+        "exportSuccessMessage": "Databáze byla úspěšně exportována.",
+        "exportFailedTitle": "Export selhal",
+        "exportFailedMessage": "{{message}}",
+        "importSuccessTitle": "Import dokončen",
+        "importSuccessMessage": "Databáze byla úspěšně importována. Obnovte stránku pro načtení nových dat.",
+        "importFailedTitle": "Import selhal",
+        "importFailedMessage": "{{message}}"
+      }
+    }
+  },
+  "dashboard": {
+    "title": "Přehled",
+    "placeholder": "Přehledové widgety budou k dispozici brzy."
+  },
+  "valves": {
+    "title": "Zóny Luftatoru",
+    "description": "Ovládejte servopohony ventilů Luftuj v jednotlivých místnostech.",
+    "refreshAria": "Obnovit ventily",
+    "alertTitle": "Chyba",
+    "empty": "Nebyly nalezeny žádné ventily s prefixem `number.luftator`.",
+    "errors": {
+      "load": "Nepodařilo se načíst ventily: {{message}}",
+      "loadUnknown": "Nepodařilo se načíst ventily.",
+      "websocket": "Nepodařilo se zpracovat živou aktualizaci ventilu.",
+      "setValue": "Nepodařilo se nastavit hodnotu ventilu: {{message}}",
+      "setValueUnknown": "Nepodařilo se nastavit hodnotu ventilu."
+    }
+  }
+}

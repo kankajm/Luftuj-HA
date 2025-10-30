@@ -40,6 +40,8 @@ app.use(express.json());
 app.use(express.raw({ type: "application/octet-stream", limit: "200mb" }));
 
 const THEME_SETTING_KEY = "ui.theme";
+const LANGUAGE_SETTING_KEY = "ui.language";
+const SUPPORTED_LANGUAGES = new Set(["en", "cs"]);
 
 app.use((request: Request, response: Response, next: NextFunction) => {
   const start = Date.now();
@@ -102,6 +104,21 @@ app.post("/api/settings/theme", (request: Request, response: Response) => {
     return;
   }
   setAppSetting(THEME_SETTING_KEY, theme);
+  response.status(204).end();
+});
+
+app.get("/api/settings/language", (_request: Request, response: Response) => {
+  const language = getAppSetting(LANGUAGE_SETTING_KEY) ?? "en";
+  response.json({ language });
+});
+
+app.post("/api/settings/language", (request: Request, response: Response) => {
+  const { language } = request.body as { language?: string };
+  if (!language || !SUPPORTED_LANGUAGES.has(language)) {
+    response.status(400).json({ detail: "Invalid language value" });
+    return;
+  }
+  setAppSetting(LANGUAGE_SETTING_KEY, language);
   response.status(204).end();
 });
 

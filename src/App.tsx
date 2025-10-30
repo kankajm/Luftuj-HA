@@ -1,11 +1,12 @@
 import { MantineProvider, createTheme, localStorageColorSchemeManager, useMantineColorScheme } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { RouterProvider } from '@tanstack/react-router'
-import { useEffect } from 'react'
-import '@mantine/notifications/styles.css'
+import { I18nextProvider } from 'react-i18next'
+import { Suspense, useEffect } from 'react'
 
 import './App.css'
 import { router } from './router'
+import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from './i18n'
 
 const theme = createTheme({
   primaryColor: 'blue',
@@ -61,12 +62,51 @@ const ThemeInitializer = () => {
   return null
 }
 
+const LanguageInitializer = () => {
+  useEffect(() => {
+    let active = true
+
+    const initialiseLanguage = async () => {
+      try {
+        await setLanguage(getInitialLanguage())
+
+        const response = await fetch('/api/settings/language')
+        if (!response?.ok) {
+          return
+        }
+        const data = (await response.json()) as { language?: string }
+        if (!active) {
+          return
+        }
+        if (data.language && isSupportedLanguage(data.language)) {
+          await setLanguage(data.language)
+        }
+      } catch (error) {
+        console.error('Failed to synchronise language preference', error)
+      }
+    }
+
+    void initialiseLanguage()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  return null
+}
+
 export default function App() {
   return (
-    <MantineProvider theme={theme} withCssVariables colorSchemeManager={colorSchemeManager} defaultColorScheme="auto">
-      <ThemeInitializer />
-      <Notifications position="bottom-right" limit={3} zIndex={4000} />
-      <RouterProvider router={router} />
-    </MantineProvider>
+    <I18nextProvider i18n={i18n} defaultNS="common">
+      <MantineProvider theme={theme} withCssVariables colorSchemeManager={colorSchemeManager} defaultColorScheme="auto">
+        <LanguageInitializer />
+        <ThemeInitializer />
+        <Notifications position="bottom-right" limit={3} zIndex={4000} />
+        <Suspense fallback={null}>
+          <RouterProvider router={router} />
+        </Suspense>
+      </MantineProvider>
+    </I18nextProvider>
   )
 }

@@ -1,0 +1,104 @@
+{
+  "app": {
+    "title": "Luftator Control",
+    "nav": {
+      "dashboard": "Dashboard",
+      "valves": "Valves",
+      "settings": "Settings",
+      "navigate": "Navigate",
+      "toggle": "Toggle navigation"
+    },
+    "footer": {
+      "company": "Luftuj s.r.o.",
+      "addressLine1": "T. G. Masaryka 102",
+      "addressLine2": "538 21 Slatiňany",
+      "phone": "+420 735 774 074",
+      "phoneLink": "tel:+420735774074",
+      "email": "info@luftuj.cz",
+      "emailLink": "mailto:info@luftuj.cz",
+      "copyright": "© {{year}} Luftuj. All rights reserved."
+    }
+  },
+  "valves": {
+    "title": "Luftator Zones",
+    "description": "Control Luftator valve actuators installed by Luftuj across each room.",
+    "refreshAria": "Refresh valves",
+    "errors": {
+      "load": "Failed to load valves: {{message}}",
+      "loadUnknown": "Failed to load valves.",
+      "websocket": "Unable to parse live valve update.",
+      "setValue": "Failed to set valve value: {{message}}",
+      "setValueUnknown": "Failed to set valve value."
+    },
+    "alertTitle": "Error",
+    "empty": "No valves found for prefix `number.luftator`."
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Backup or restore Luftator data managed by this Home Assistant instance.",
+    "language": {
+      "title": "Language",
+      "description": "Choose the language used in the interface.",
+      "options": {
+        "en": "English",
+        "cs": "Čeština"
+      },
+      "notifications": {
+        "updatedTitle": "Language changed",
+        "updatedMessage": "Interface language set to {{language}}.",
+        "failedTitle": "Failed to change language",
+        "failedMessage": "{{message}}",
+        "unknown": "Unknown error"
+      }
+    },
+    "theme": {
+      "title": "Theme",
+      "description": "Switch between light and dark appearance. Your preference is saved in this browser.",
+      "light": "Light",
+      "dark": "Dark",
+      "notifications": {
+        "updatedTitle": "Theme updated",
+        "updatedMessage": "Theme preference set to {{theme}}.",
+        "failedTitle": "Failed to save theme",
+        "failedMessage": "{{message}}",
+        "unknown": "Unknown error"
+      }
+    },
+    "database": {
+      "title": "Database tools",
+      "description": "Export downloads the current SQLite database (`/data/luftator.db`). Import replaces the existing file after creating a backup.",
+      "export": "Export database",
+      "import": "Import database",
+      "importing": "Importing…",
+      "notifications": {
+        "exportSuccessTitle": "Export complete",
+        "exportSuccessMessage": "Database exported successfully.",
+        "exportFailedTitle": "Export failed",
+        "exportFailedMessage": "{{message}}",
+        "importSuccessTitle": "Import complete",
+        "importSuccessMessage": "Database imported successfully. Refresh to load new data.",
+        "importFailedTitle": "Import failed",
+        "importFailedMessage": "{{message}}",
+        "unknown": "An unexpected error occurred."
+      }
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "placeholder": "Overview widgets coming soon."
+  },
+  "valves": {
+    "title": "Luftator Zones",
+    "description": "Control Luftator valve actuators installed by Luftuj across each room.",
+    "refreshAria": "Refresh valves",
+    "alertTitle": "Error",
+    "empty": "No valves found for prefix `number.luftator`.",
+    "errors": {
+      "load": "Failed to load valves: {{message}}",
+      "loadUnknown": "Failed to load valves.",
+      "websocket": "Unable to parse live valve update.",
+      "setValue": "Failed to set valve value: {{message}}",
+      "setValueUnknown": "Failed to set valve value."
+    }
+  }
+}
