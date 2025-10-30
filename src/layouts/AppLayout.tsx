@@ -39,7 +39,8 @@ export const AppLayout = () => {
       withBorder={false}
       styles={{
         main: {
-          backgroundColor: '#f0f4f8',
+          backgroundColor: 'var(--mantine-color-body)',
+          color: 'var(--mantine-color-text)',
           minHeight: '100dvh',
         },
       }}

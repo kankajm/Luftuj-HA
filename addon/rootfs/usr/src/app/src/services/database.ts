@@ -63,6 +63,15 @@ const migrations: Migration[] = [
         ON valve_history(entity_id, recorded_at DESC)`
     ],
   },
+  {
+    id: "002_app_settings",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
 
 let db: Database | null = null;
@@ -71,6 +80,8 @@ type StatementMap = {
   upsertController: Statement;
   upsertValveState: Statement;
   insertValveHistory: Statement;
+  getSetting: Statement;
+  upsertSetting: Statement;
 };
 
 let statements: StatementMap | null = null;
@@ -128,6 +139,8 @@ function finalizeStatements(): void {
   statements.upsertController.finalize();
   statements.upsertValveState.finalize();
   statements.insertValveHistory.finalize();
+  statements.getSetting.finalize();
+  statements.upsertSetting.finalize();
   statements = null;
 }
 
@@ -152,6 +165,11 @@ function prepareStatements(database: Database): StatementMap {
     insertValveHistory: database.prepare(
       `INSERT INTO valve_history (entity_id, controller_id, name, value, state, recorded_at, attributes)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ),
+    getSetting: database.prepare(`SELECT value FROM app_settings WHERE key = ?`),
+    upsertSetting: database.prepare(
+      `INSERT INTO app_settings (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     ),
   };
 }
@@ -238,6 +256,23 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
 
 export function getDatabasePath(): string {
   return DATABASE_PATH;
+}
+
+export function getAppSetting(key: string): string | null {
+  if (!db || !statements) {
+    throw new Error("Database not initialised");
+  }
+
+  const row = statements.getSetting.get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setAppSetting(key: string, value: string): void {
+  if (!db || !statements) {
+    throw new Error("Database not initialised");
+  }
+
+  statements.upsertSetting.run(key, value);
 }
 
 export async function createDatabaseBackup(): Promise<string | null> {

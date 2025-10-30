@@ -14,7 +14,13 @@ import { HomeAssistantClient } from "./services/homeAssistantClient";
 import type { ValveController } from "./core/valveManager";
 import { ValveManager } from "./core/valveManager";
 import { OfflineValveManager } from "./core/offlineValveManager";
-import { getDatabasePath, replaceDatabaseWithFile, createDatabaseBackup } from "./services/database";
+import {
+  getDatabasePath,
+  replaceDatabaseWithFile,
+  createDatabaseBackup,
+  getAppSetting,
+  setAppSetting,
+} from "./services/database";
 
 loadConfig();
 const config = getConfig();
@@ -32,6 +38,8 @@ app.use(
 );
 app.use(express.json());
 app.use(express.raw({ type: "application/octet-stream", limit: "200mb" }));
+
+const THEME_SETTING_KEY = "ui.theme";
 
 app.use((request: Request, response: Response, next: NextFunction) => {
   const start = Date.now();
@@ -80,6 +88,21 @@ app.get("/api/valves", async (_request: Request, response: Response, next: NextF
   } catch (error) {
     next(error);
   }
+});
+
+app.get("/api/settings/theme", (_request: Request, response: Response) => {
+  const theme = getAppSetting(THEME_SETTING_KEY) ?? "light";
+  response.json({ theme });
+});
+
+app.post("/api/settings/theme", (request: Request, response: Response) => {
+  const { theme } = request.body as { theme?: string };
+  if (theme !== "light" && theme !== "dark") {
+    response.status(400).json({ detail: "Invalid theme value" });
+    return;
+  }
+  setAppSetting(THEME_SETTING_KEY, theme);
+  response.status(204).end();
 });
 
 app.get("/api/database/export", async (_request: Request, response: Response, next: NextFunction) => {
