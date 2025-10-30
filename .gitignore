@@ -14,6 +14,9 @@ dist-ssr
 addon/rootfs/usr/src/app/.env
 addon/rootfs/usr/src/app/.venv
 
+# Home Assistant add-on data store
+addon/rootfs/usr/data/luftator.db*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
