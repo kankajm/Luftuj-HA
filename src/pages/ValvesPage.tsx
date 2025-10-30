@@ -13,39 +13,10 @@ import {
 import { IconRefresh } from '@tabler/icons-react'
 
 import { ValveCard } from '../components'
+import { resolveApiUrl, resolveWebSocketUrl } from '../utils/api'
 import { logger } from '../utils/logger'
 import type { HaState } from '../types/homeAssistant'
 import type { Valve } from '../types/valve'
-
-const apiBase = (() => {
-  const override = import.meta.env.VITE_API_BASE_URL as string | undefined
-  const allowOverride = import.meta.env.DEV && override
-  if (allowOverride) {
-    try {
-      const parsed = new URL(override as string, window.location.origin)
-      if (!parsed.pathname.endsWith('/')) {
-        parsed.pathname += '/'
-      }
-      return parsed
-    } catch (error) {
-      logger.warn('Invalid VITE_API_BASE_URL, falling back to ingress location', { error })
-    }
-  }
-
-  const current = new URL(window.location.href)
-  if (!current.pathname.endsWith('/')) {
-    current.pathname += '/'
-  }
-  return current
-})()
-
-const resolveHttpUrl = (path: string) => new URL(path, apiBase).toString()
-
-const websocketUrl = (path: string) => {
-  const url = new URL(path, apiBase)
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-  return url.toString()
-}
 
 type ManagedWebSocket = WebSocket & { manualClose?: boolean }
 
@@ -115,7 +86,7 @@ export const ValvesPage = () => {
   const fetchSnapshot = useCallback(async () => {
     try {
       setLoading(true)
-      const url = resolveHttpUrl('api/valves')
+      const url = resolveApiUrl('/api/valves')
       logger.debug('Requesting valve snapshot via REST', { url })
       const response = await logger.timeAsync('valves.fetchSnapshot', async () => fetch(url))
       if (!response.ok) {
@@ -165,7 +136,7 @@ export const ValvesPage = () => {
       wsRef.current = null
     }
 
-    const wsTarget = websocketUrl('/ws/valves')
+    const wsTarget = resolveWebSocketUrl('/ws/valves')
     logger.info('Opening valves WebSocket connection', { url: wsTarget })
     const socket = new WebSocket(wsTarget) as ManagedWebSocket
     wsRef.current = socket
@@ -282,7 +253,7 @@ export const ValvesPage = () => {
   const commitValveValue = useCallback(async (entityId: string, value: number): Promise<void> => {
     try {
       logger.info('Submitting valve value change', { entityId, value })
-      const response = await fetch(resolveHttpUrl(`api/valves/${encodeURIComponent(entityId)}`), {
+      const response = await fetch(resolveApiUrl(`/api/valves/${encodeURIComponent(entityId)}`), {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({value}),

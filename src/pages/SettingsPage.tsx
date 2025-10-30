@@ -11,6 +11,7 @@ import {
 } from '@mantine/core'
 import { IconDownload, IconUpload } from '@tabler/icons-react'
 
+import { resolveApiUrl } from '../utils/api'
 import { logger } from '../utils/logger'
 
 export const SettingsPage = () => {
@@ -23,7 +24,8 @@ export const SettingsPage = () => {
     setMessage(null)
     try {
       logger.info('Exporting database via frontend action')
-      const response = await logger.timeAsync('settings.exportDatabase', async () => fetch('/api/database/export'))
+      const exportUrl = resolveApiUrl('/api/database/export')
+      const response = await logger.timeAsync('settings.exportDatabase', async () => fetch(exportUrl))
       if (!response.ok) {
         const message = `Export failed: ${response.statusText}`
         setError(message)
@@ -59,8 +61,9 @@ export const SettingsPage = () => {
     try {
       const buffer = await file.arrayBuffer()
       logger.info('Importing database via frontend action', { size: buffer.byteLength })
+      const importUrl = resolveApiUrl('/api/database/import')
       const response = await logger.timeAsync('settings.importDatabase', async () =>
-        fetch('/api/database/import', {
+        fetch(importUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/octet-stream',
