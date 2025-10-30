@@ -1,10 +1,13 @@
-import { AppShell, Button, Drawer, Group, Stack, Title, Burger, rem } from '@mantine/core'
-import { IconTopologyStar3 } from '@tabler/icons-react'
+import { Anchor, AppShell, Button, Drawer, Group, Image, Stack, Text, Title, Burger, rem } from '@mantine/core'
+import { IconAt, IconPhone, IconTopologyStar3 } from '@tabler/icons-react'
 import { Link, Outlet } from '@tanstack/react-router'
 import { useDisclosure } from '@mantine/hooks'
+import logoFull from '../assets/logo-big-with-text.png'
 
 export const AppLayout = () => {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false)
+
+  const footerLink = import.meta.env.VITE_FOOTER_LINK ?? 'https://www.luftuj.cz/'
 
   const navItems = [
     { to: '/', label: 'Dashboard' },
@@ -35,6 +38,7 @@ export const AppLayout = () => {
   return (
     <AppShell
       header={{ height: 60 }}
+      footer={{ height: 64 }}
       padding={{ base: 'sm', sm: 'md' }}
       withBorder={false}
       styles={{
@@ -76,6 +80,51 @@ export const AppLayout = () => {
       <AppShell.Main>
         <Outlet />
       </AppShell.Main>
+
+      <AppShell.Footer
+        mih={90}
+        px="md"
+        pt="md"
+        pb="xl"
+        style={{ paddingBottom: 'calc(var(--mantine-spacing-xl) + 12px)' }}
+      >
+        <Stack gap="sm" justify="space-between" h="100%">
+          <Group justify="space-between" align="flex-start" wrap="wrap" gap="lg">
+            <Anchor href={footerLink} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Image src={logoFull} alt="Luftuj" h={32} fit="contain" />
+              <Text size="sm" fw={600} c="var(--mantine-color-text)">
+                Luftuj s.r.o.
+              </Text>
+            </Anchor>
+
+            <Group gap="md" align="flex-start" wrap="wrap">
+              <Stack gap={2}>
+                <Text size="xs" c="dimmed">
+                  T. G. Masaryka 102
+                </Text>
+                <Text size="xs" c="dimmed">
+                  538 21 Slatiňany
+                </Text>
+              </Stack>
+
+              <Stack gap={4}>
+                <Group gap={6} wrap="nowrap">
+                  <IconPhone size={14} stroke={1.8} color="#228be6" />
+                  <Anchor href="tel:+420735774074" size="xs" c="blue.5">
+                    +420 735 774 074
+                  </Anchor>
+                </Group>
+                <Group gap={6} wrap="nowrap">
+                  <IconAt size={14} stroke={1.8} color="#228be6" />
+                  <Anchor href="mailto:info@luftuj.cz" size="xs" c="blue.5">
+                    info@luftuj.cz
+                  </Anchor>
+                </Group>
+              </Stack>
+            </Group>
+          </Group>
+        </Stack>
+      </AppShell.Footer>
     </AppShell>
   )
 }
