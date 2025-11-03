@@ -151,7 +151,7 @@ export const SettingsPage = () => {
         setSavingLanguage(false)
       }
     },
-    [i18n.language, languageOptions, setLanguage, t],
+    [i18n.language, languageOptions, t],
   )
 
   const handleLanguageChange = useCallback(

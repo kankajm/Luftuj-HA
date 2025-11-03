@@ -82,5 +82,11 @@
       "setValue": "Nepodařilo se nastavit hodnotu ventilu: {{message}}",
       "setValueUnknown": "Nepodařilo se nastavit hodnotu ventilu."
     }
+  },
+  "errors": {
+    "i18n": {
+      "title": "Inicializace překladů selhala",
+      "message": "Texty uživatelského rozhraní se zobrazí pouze anglicky. Obnovte prosím stránku."
+    }
   }
 }

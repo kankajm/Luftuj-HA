@@ -282,7 +282,7 @@ export const ValvesPage = () => {
       logger.error('Valve value update failed', { entityId, value, error: requestError })
       await fetchSnapshot()
     }
-  }, [fetchSnapshot])
+  }, [fetchSnapshot, t])
 
   const handleCloseError = useCallback(() => setError(null), [])
 

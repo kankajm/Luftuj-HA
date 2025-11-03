@@ -4,7 +4,6 @@ import { RouterProvider } from '@tanstack/react-router'
 import { I18nextProvider } from 'react-i18next'
 import { Suspense, useEffect } from 'react'
 
-import './App.css'
 import { router } from './router'
 import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from './i18n'
 

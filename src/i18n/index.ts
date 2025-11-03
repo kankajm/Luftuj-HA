@@ -1,8 +1,10 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
+import { notifications } from '@mantine/notifications'
 
 import enCommon from './locales/en/common.json'
 import csCommon from './locales/cs/common.json'
+import { logger } from '../utils/logger'
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -24,14 +26,26 @@ export type SupportedLanguage = keyof typeof resources
 export const isSupportedLanguage = (language: string): language is SupportedLanguage =>
   Object.prototype.hasOwnProperty.call(resources, language)
 
-i18n.use(initReactI18next).init({
-  resources,
-  fallbackLng: 'en',
-  defaultNS: 'common',
-  interpolation: {
-    escapeValue: false,
-  },
-})
+export const i18nReady = i18n
+  .use(initReactI18next)
+  .init({
+    resources,
+    fallbackLng: 'en',
+    defaultNS: 'common',
+    interpolation: {
+      escapeValue: false,
+    },
+  })
+  .catch((error) => {
+    logger.error('Failed to initialise i18n', { error })
+    if (typeof window !== 'undefined') {
+      notifications.show({
+        title: i18n.t('errors.i18n.title'),
+        message: i18n.t('errors.i18n.message'),
+        color: 'red',
+      })
+    }
+  })
 
 export const setLanguage = async (language: string) => {
   const target = isSupportedLanguage(language) ? language : 'en'

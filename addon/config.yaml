@@ -15,7 +15,9 @@ homeassistant_api: true
 hassio_api: true
 ingress: true
 ingress_port: 8099
-panel_icon: mdi:valve
+panel_icon: mdi:fan
+icon: icon.png
+logo: logo.png
 map:
   - share:rw
   - config:rw

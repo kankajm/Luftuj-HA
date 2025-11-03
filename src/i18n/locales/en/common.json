@@ -100,5 +100,11 @@
       "setValue": "Failed to set valve value: {{message}}",
       "setValueUnknown": "Failed to set valve value."
     }
+  },
+  "errors": {
+    "i18n": {
+      "title": "Translation initialisation failed",
+      "message": "UI texts may appear in English only. Please reload the page."
+    }
   }
 }
