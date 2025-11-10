@@ -40,4 +40,3 @@ ESLint configuration lives in `eslint.config.js`. Run `bun run lint` to ensure t
 
 - Missing styles? Ensure `src/main.tsx` imports `@mantine/core/styles.css` and rebuild.
 - If you see stale assets in Home Assistant, re-run `bun run build:addon` and rebuild the add-on image.
-

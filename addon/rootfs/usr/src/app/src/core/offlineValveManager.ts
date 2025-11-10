@@ -5,10 +5,15 @@ import type { BroadcastFn, ValveController, ValveSnapshot } from "./valveManager
 // It keeps the backend bootable, emits an empty snapshot for the UI, and blocks valve mutations with
 // a predictable "Offline mode" error instead of crashing on missing HA connectivity.
 export class OfflineValveManager implements ValveController {
-  constructor(private readonly logger: Logger, private readonly broadcast: BroadcastFn) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly broadcast: BroadcastFn,
+  ) {}
 
   async start(): Promise<void> {
-    this.logger.warn("Valve manager running in offline mode; Home Assistant communication disabled");
+    this.logger.warn(
+      "Valve manager running in offline mode; Home Assistant communication disabled",
+    );
     await this.broadcast({ type: "snapshot", payload: [] });
   }
 

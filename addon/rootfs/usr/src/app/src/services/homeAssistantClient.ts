@@ -32,8 +32,15 @@ type HassWebSocketAuthRequiredMessage = { type: "auth_required" };
 type HassWebSocketAuthOkMessage = { type: "auth_ok" };
 type HassWebSocketAuthInvalidMessage = { type: "auth_invalid" };
 type HassWebSocketEventMessage = { type: "event"; event: HassEventEnvelope };
-type KnownHassMessageType = HassWebSocketAuthRequiredMessage["type"] | HassWebSocketAuthOkMessage["type"] | HassWebSocketAuthInvalidMessage["type"] | HassWebSocketEventMessage["type"];
-type HassWebSocketUnknownMessage = { type: Exclude<string, KnownHassMessageType>; [key: string]: unknown };
+type KnownHassMessageType =
+  | HassWebSocketAuthRequiredMessage["type"]
+  | HassWebSocketAuthOkMessage["type"]
+  | HassWebSocketAuthInvalidMessage["type"]
+  | HassWebSocketEventMessage["type"];
+type HassWebSocketUnknownMessage = {
+  type: Exclude<string, KnownHassMessageType>;
+  [key: string]: unknown;
+};
 
 type HassWebSocketMessage =
   | HassWebSocketAuthRequiredMessage
@@ -42,13 +49,22 @@ type HassWebSocketMessage =
   | HassWebSocketEventMessage
   | HassWebSocketUnknownMessage;
 
-const hasTypeProperty = (value: unknown): value is { type: string } =>
-  typeof value === "object" && value !== null && "type" in value && typeof (value as { type: unknown }).type === "string";
+function hasTypeProperty(value: unknown): value is { type: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    typeof (value as { type: unknown }).type === "string"
+  );
+}
 
-const isHassWebSocketMessage = (value: unknown): value is HassWebSocketMessage => hasTypeProperty(value);
+function isHassWebSocketMessage(value: unknown): value is HassWebSocketMessage {
+  return hasTypeProperty(value);
+}
 
-const isEventMessage = (message: HassWebSocketMessage): message is HassWebSocketEventMessage =>
-  message.type === "event" && typeof message === "object" && true && "event" in message;
+function isEventMessage(message: HassWebSocketMessage): message is HassWebSocketEventMessage {
+  return message.type === "event" && typeof message === "object" && "event" in message;
+}
 
 const LUFTATOR_ENTITY_PREFIX = "number.luftator_";
 const STATE_CHANGED_EVENT = "state_changed";
@@ -58,7 +74,11 @@ export class HomeAssistantClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
-  constructor(baseUrl: string, private readonly token: string, private readonly logger: Logger) {
+  constructor(
+    baseUrl: string,
+    private readonly token: string,
+    private readonly logger: Logger,
+  ) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.headers = {
       Authorization: `Bearer ${token}`,
@@ -89,7 +109,10 @@ export class HomeAssistantClient {
 
     if (!response.ok) {
       const body = await response.text();
-      this.logger.error({ entityId, value, body, status: response.status }, "Failed to set valve value");
+      this.logger.error(
+        { entityId, value, body, status: response.status },
+        "Failed to set valve value",
+      );
       throw new Error(`Failed to set valve value for ${entityId}: ${response.status}`);
     }
   }
@@ -100,32 +123,34 @@ export class HomeAssistantClient {
     let reconnectTimer: NodeJS.Timeout | null = null;
 
     const websocketUrl = this.toWebSocketUrl("/api/websocket");
+    const { logger, headers } = this;
+    const boundHandleMessage = this.handleWebSocketMessage.bind(this);
 
-    const clearReconnectTimer = () => {
+    function clearReconnectTimer(): void {
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
       }
-    };
+    }
 
-    const scheduleReconnect = (reason: string) => {
-      this.logger.warn({ reason }, "Home Assistant WebSocket disconnected; scheduling reconnect");
+    function scheduleReconnect(reason: string): void {
+      logger.warn({ reason }, "Home Assistant WebSocket disconnected; scheduling reconnect");
       clearReconnectTimer();
       if (!active) {
         return;
       }
       reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
-    };
+    }
 
-    const cleanupSocket = () => {
+    function cleanupSocket(): void {
       if (socket) {
         socket.removeAllListeners();
         socket.terminate();
         socket = null;
       }
-    };
+    }
 
-    const connect = () => {
+    function connect(): void {
       if (!active) {
         return;
       }
@@ -133,39 +158,39 @@ export class HomeAssistantClient {
       cleanupSocket();
       clearReconnectTimer();
 
-      this.logger.info({ url: websocketUrl }, "Connecting to Home Assistant WebSocket");
+      logger.info({ url: websocketUrl }, "Connecting to Home Assistant WebSocket");
       socket = new WebSocket(websocketUrl, {
         headers: {
-          Authorization: this.headers.Authorization,
+          Authorization: headers.Authorization,
         },
       });
 
       socket.on("open", () => {
-        this.logger.info("Home Assistant WebSocket connection established");
+        logger.info("Home Assistant WebSocket connection established");
       });
 
       socket.on("message", (data) => {
         try {
           const payload = JSON.parse(data.toString()) as unknown;
           if (isHassWebSocketMessage(payload)) {
-            this.handleWebSocketMessage(payload, socket!, handler);
+            boundHandleMessage(payload, socket!, handler);
           } else {
-            this.logger.warn({ payload }, "Ignoring unexpected Home Assistant WebSocket payload");
+            logger.warn({ payload }, "Ignoring unexpected Home Assistant WebSocket payload");
           }
         } catch (error) {
-          this.logger.error({ error }, "Failed to process Home Assistant WebSocket message");
+          logger.error({ error }, "Failed to process Home Assistant WebSocket message");
         }
       });
 
       socket.on("error", (error) => {
-        this.logger.error({ error }, "Home Assistant WebSocket error");
+        logger.error({ error }, "Home Assistant WebSocket error");
       });
 
       socket.on("close", (code, reason) => {
         const message = reason.toString() || "socket closed";
         scheduleReconnect(`${code}: ${message}`);
       });
-    };
+    }
 
     connect();
 
@@ -176,7 +201,11 @@ export class HomeAssistantClient {
     };
   }
 
-  private handleWebSocketMessage(message: HassWebSocketMessage, socket: WebSocket, handler: HassEventHandler): void {
+  private handleWebSocketMessage(
+    message: HassWebSocketMessage,
+    socket: WebSocket,
+    handler: HassEventHandler,
+  ): void {
     switch (message.type) {
       case "auth_required":
         socket.send(JSON.stringify({ type: "auth", access_token: this.token }));
@@ -206,7 +235,10 @@ export class HomeAssistantClient {
     }
   }
 
-  private processEvent(eventPayload: HassEventEnvelope | undefined, handler: HassEventHandler): void {
+  private processEvent(
+    eventPayload: HassEventEnvelope | undefined,
+    handler: HassEventHandler,
+  ): void {
     if (!eventPayload) {
       return;
     }

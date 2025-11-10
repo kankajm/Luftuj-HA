@@ -1,4 +1,8 @@
-import type { HassState, HassStateChangedEvent, HomeAssistantClient } from "../services/homeAssistantClient";
+import type {
+  HassState,
+  HassStateChangedEvent,
+  HomeAssistantClient,
+} from "../services/homeAssistantClient";
 import type { Logger } from "pino";
 import { Mutex } from "../utils/mutex";
 import { storeValveSnapshots } from "../services/database";
@@ -34,7 +38,10 @@ export class ValveManager implements ValveController {
     await this.refresh();
     this.logger.info("Valve manager subscribing to Home Assistant events");
     this.disconnect = this.client.subscribeLuftatorEvents(async (event) => {
-      this.logger.debug({ entityId: event.entity_id }, "Received Home Assistant state change event");
+      this.logger.debug(
+        { entityId: event.entity_id },
+        "Received Home Assistant state change event",
+      );
       await this.handleEvent(event);
     });
   }
@@ -155,7 +162,8 @@ export class ValveManager implements ValveController {
       return null;
     }
     // Expect pattern number.luftator_<controller>_<zone>
-    const baseSegments = segments.length >= 3 ? segments.slice(0, segments.length - 1) : segments.slice(0, 1);
+    const baseSegments =
+      segments.length >= 3 ? segments.slice(0, segments.length - 1) : segments.slice(0, 1);
     const controller = baseSegments.join("_");
     return controller || null;
   }

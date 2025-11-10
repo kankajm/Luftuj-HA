@@ -60,7 +60,7 @@ const migrations: Migration[] = [
         FOREIGN KEY (controller_id) REFERENCES controllers(id)
       )`,
       `CREATE INDEX IF NOT EXISTS idx_valve_history_entity_id_recorded_at
-        ON valve_history(entity_id, recorded_at DESC)`
+        ON valve_history(entity_id, recorded_at DESC)`,
     ],
   },
   {
@@ -166,7 +166,7 @@ function prepareStatements(database: Database): StatementMap {
       `INSERT INTO valve_history (entity_id, controller_id, name, value, state, recorded_at, attributes)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ),
-    getSetting: database.prepare(`SELECT value FROM app_settings WHERE key = ?`),
+    getSetting: database.prepare("SELECT value FROM app_settings WHERE key = ?"),
     upsertSetting: database.prepare(
       `INSERT INTO app_settings (key, value) VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,

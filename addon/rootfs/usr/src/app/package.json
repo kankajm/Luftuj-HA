@@ -6,12 +6,16 @@
   "scripts": {
     "dev": "bun --watch src/server.ts",
     "start": "bun run src/server.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "lint": "eslint . --config ../../../../../eslint.config.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "modbus-serial": "^8.0.23",
     "pino": "^10.1.0",
     "ws": "^8.18.3",
     "zod": "^4.1.12"
@@ -23,6 +27,7 @@
     "@types/node": "^20.17.6",
     "@types/pino": "^7.0.5",
     "@types/ws": "^8.18.1",
+    "prettier": "^3.3.3",
     "typescript": "^5.9.3"
   }
 }
