@@ -72,6 +72,24 @@ const migrations: Migration[] = [
       )`,
     ],
   },
+  {
+    id: "003_timeline_events",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS timeline_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        start_time TEXT NOT NULL, -- HH:MM format
+        end_time TEXT NOT NULL, -- HH:MM format
+        day_of_week INTEGER, -- 0-6 (Sunday=0), NULL for all days
+        hru_config TEXT, -- JSON: {mode, power, temperature}
+        luftator_config TEXT, -- JSON: {entity_id: value}
+        enabled BOOLEAN NOT NULL DEFAULT 1,
+        priority INTEGER NOT NULL DEFAULT 0, -- higher wins conflicts
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_timeline_events_day_time ON timeline_events(day_of_week, start_time, enabled)`,
+    ],
+  },
 ];
 
 let db: Database | null = null;
@@ -82,6 +100,9 @@ type StatementMap = {
   insertValveHistory: Statement;
   getSetting: Statement;
   upsertSetting: Statement;
+  getTimelineEvents: Statement;
+  upsertTimelineEvent: Statement;
+  deleteTimelineEvent: Statement;
 };
 
 let statements: StatementMap | null = null;
@@ -141,6 +162,9 @@ function finalizeStatements(): void {
   statements.insertValveHistory.finalize();
   statements.getSetting.finalize();
   statements.upsertSetting.finalize();
+  statements.getTimelineEvents.finalize();
+  statements.upsertTimelineEvent.finalize();
+  statements.deleteTimelineEvent.finalize();
   statements = null;
 }
 
@@ -170,6 +194,26 @@ function prepareStatements(database: Database): StatementMap {
     upsertSetting: database.prepare(
       `INSERT INTO app_settings (key, value) VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    ),
+    getTimelineEvents: database.prepare(
+      `SELECT id, start_time, end_time, day_of_week, hru_config, luftator_config, enabled, priority, created_at, updated_at
+       FROM timeline_events ORDER BY day_of_week ASC NULLS LAST, start_time ASC, priority DESC`,
+    ),
+    upsertTimelineEvent: database.prepare(
+      `INSERT INTO timeline_events (id, start_time, end_time, day_of_week, hru_config, luftator_config, enabled, priority)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         start_time = excluded.start_time,
+         end_time = excluded.end_time,
+         day_of_week = excluded.day_of_week,
+         hru_config = excluded.hru_config,
+         luftator_config = excluded.luftator_config,
+         enabled = excluded.enabled,
+         priority = excluded.priority,
+         updated_at = datetime('now')`,
+    ),
+    deleteTimelineEvent: database.prepare(
+      `DELETE FROM timeline_events WHERE id = ?`,
     ),
   };
 }
@@ -273,6 +317,103 @@ export function setAppSetting(key: string, value: string): void {
   }
 
   statements.upsertSetting.run(key, value);
+}
+
+export interface TimelineEvent {
+  id?: number;
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
+  dayOfWeek?: number | null; // 0-6 (Sunday=0), null for all days
+  hruConfig?: {
+    mode?: string;
+    power?: number;
+    temperature?: number;
+  } | null;
+  luftatorConfig?: Record<string, number> | null;
+  enabled: boolean;
+  priority: number;
+}
+
+export interface TimelineEventRecord {
+  id: number;
+  start_time: string;
+  end_time: string;
+  day_of_week: number | null;
+  hru_config: string | null;
+  luftator_config: string | null;
+  enabled: boolean;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+}
+
+function normaliseTimelineEvent(event: TimelineEvent): Omit<TimelineEventRecord, 'id' | 'created_at' | 'updated_at'> {
+  return {
+    start_time: event.startTime,
+    end_time: event.endTime,
+    day_of_week: event.dayOfWeek ?? null,
+    hru_config: event.hruConfig ? JSON.stringify(event.hruConfig) : null,
+    luftator_config: event.luftatorConfig ? JSON.stringify(event.luftatorConfig) : null,
+    enabled: event.enabled,
+    priority: event.priority,
+  };
+}
+
+function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineEvent {
+  return {
+    id: record.id,
+    startTime: record.start_time,
+    endTime: record.end_time,
+    dayOfWeek: record.day_of_week,
+    hruConfig: record.hru_config ? JSON.parse(record.hru_config) : null,
+    luftatorConfig: record.luftator_config ? JSON.parse(record.luftator_config) : null,
+    enabled: Boolean(record.enabled),
+    priority: record.priority,
+  };
+}
+
+export function getTimelineEvents(): TimelineEvent[] {
+  if (!db || !statements) {
+    throw new Error("Database not initialised");
+  }
+
+  const records = statements.getTimelineEvents.all() as TimelineEventRecord[];
+  return records.map(denormaliseTimelineEvent);
+}
+
+export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
+  if (!db || !statements) {
+    throw new Error("Database not initialised");
+  }
+
+  const normalised = normaliseTimelineEvent(event);
+  
+  // Use single upsert statement for both insert and update
+  const result = statements.upsertTimelineEvent.run(
+    event.id ?? null, // id can be null for new records
+    normalised.start_time,
+    normalised.end_time,
+    normalised.day_of_week,
+    normalised.hru_config,
+    normalised.luftator_config,
+    normalised.enabled,
+    normalised.priority,
+  ) as { lastInsertRowid: number | bigint; changes: number };
+  
+  // Return the event with proper ID
+  const persistedId = event.id ?? Number(result.lastInsertRowid);
+  return {
+    ...event,
+    id: persistedId,
+  };
+}
+
+export function deleteTimelineEvent(id: number): void {
+  if (!db || !statements) {
+    throw new Error("Database not initialised");
+  }
+
+  statements.deleteTimelineEvent.run(id);
 }
 
 export async function createDatabaseBackup(): Promise<string | null> {

@@ -5,6 +5,7 @@ import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import fs from "fs";
+import net from "net";
 import path from "path";
 import WebSocket, { WebSocketServer } from "ws";
 
@@ -20,7 +21,12 @@ import {
   createDatabaseBackup,
   getAppSetting,
   setAppSetting,
+  getTimelineEvents,
+  upsertTimelineEvent,
+  deleteTimelineEvent,
 } from "./services/database";
+import { HRU_UNITS, getUnitById } from "./hru/definitions";
+import { ModbusTcpClient } from "./services/modbus/ModbusTcpClient";
 
 loadConfig();
 const config = getConfig();
@@ -44,9 +50,9 @@ const LANGUAGE_SETTING_KEY = "ui.language";
 const SUPPORTED_LANGUAGES = new Set(["en", "cs"]);
 
 app.use((request: Request, response: Response, next: NextFunction) => {
-  const start = Date.now();
+  const requestStart = Date.now();
   response.on("finish", () => {
-    const durationMs = Date.now() - start;
+    const durationMs = Date.now() - requestStart;
     logger.info(
       {
         method: request.method,
@@ -59,6 +65,307 @@ app.use((request: Request, response: Response, next: NextFunction) => {
     );
   });
   next();
+});
+
+// HRU support
+type HruSettings = {
+  unit: string | null; // id from HRU_UNITS
+  host: string;
+  port: number;
+  unitId: number; // Modbus unit/slave id
+};
+
+const HRU_SETTINGS_KEY = "hru.settings";
+const ADDON_MODE_KEY = "addon.mode";
+const ADDON_MODES = ["manual", "timeline"] as const;
+type AddonMode = typeof ADDON_MODES[number];
+
+app.get("/api/hru/units", (_request: Request, response: Response) => {
+  response.json(
+    HRU_UNITS.map((u) => ({
+      id: u.id,
+      name: u.name,
+      description: u.description,
+      registers: {
+        requestedPower: u.registers.requestedPower,
+        requestedTemperature: u.registers.requestedTemperature,
+        mode: { address: u.registers.mode.address, kind: u.registers.mode.kind, values: u.registers.mode.values },
+      },
+    })),
+  );
+});
+
+app.get("/api/settings/hru", (_request: Request, response: Response) => {
+  const raw = getAppSetting(HRU_SETTINGS_KEY);
+  let value: HruSettings;
+  try {
+    value = raw ? (JSON.parse(String(raw)) as HruSettings) : { unit: null, host: "localhost", port: 502, unitId: 1 };
+  } catch {
+    value = { unit: null, host: "localhost", port: 502, unitId: 1 };
+  }
+  response.json(value);
+});
+
+app.post("/api/settings/hru", (request: Request, response: Response) => {
+  const body = request.body as Partial<HruSettings>;
+  const unit = body.unit ?? null;
+  const host = (body.host ?? "").toString().trim();
+  const port = Number(body.port);
+  const unitId = Number(body.unitId);
+
+  if (unit !== null && !HRU_UNITS.some((u) => u.id === unit)) {
+    response.status(400).json({ detail: "Unknown HRU unit id" });
+    return;
+  }
+  if (!host) {
+    response.status(400).json({ detail: "Missing host" });
+    return;
+  }
+  if (!Number.isFinite(port) || port <= 0 || port > 65535) {
+    response.status(400).json({ detail: "Invalid port" });
+    return;
+  }
+  if (!Number.isFinite(unitId) || unitId <= 0 || unitId > 247) {
+    response.status(400).json({ detail: "Invalid unitId" });
+    return;
+  }
+
+  const settings: HruSettings = { unit, host, port, unitId };
+  setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
+  response.status(204).end();
+});
+
+async function withTempModbusClient<T>(cfg: { host: string; port: number; unitId: number }, fn: (client: ModbusTcpClient) => Promise<T>): Promise<T> {
+  const client = new ModbusTcpClient({ host: cfg.host, port: cfg.port, unitId: cfg.unitId, timeoutMs: 2000 }, logger);
+  try {
+    await client.connect();
+    const result = await fn(client);
+    await client.safeDisconnect();
+    return result;
+  } catch (e) {
+    await client.safeDisconnect();
+    throw e;
+  }
+}
+
+app.get("/api/hru/read", async (_request: Request, response: Response) => {
+  const raw = getAppSetting(HRU_SETTINGS_KEY);
+  const settings = raw ? (JSON.parse(String(raw)) as HruSettings) : { unit: null, host: "localhost", port: 502, unitId: 1 };
+  if (!settings.unit) {
+    response.status(400).json({ detail: "HRU unit not configured" });
+    return;
+  }
+  const def = getUnitById(settings.unit);
+  if (!def) {
+    response.status(400).json({ detail: "Unknown HRU unit" });
+    return;
+  }
+
+  try {
+    const result = await withTempModbusClient({ host: settings.host, port: settings.port, unitId: settings.unitId }, async (mb) => {
+      const powerRaw = (await mb.readHolding(def.registers.requestedPower.address, 1))[0] ?? 0;
+      const tempRaw = (await mb.readHolding(def.registers.requestedTemperature.address, 1))[0] ?? 0;
+      const modeRaw = (await mb.readHolding(def.registers.mode.address, 1))[0] ?? 0;
+
+      const power = powerRaw;
+      const temp = def.registers.requestedTemperature.scale ? tempRaw * def.registers.requestedTemperature.scale : tempRaw;
+      const mode = def.registers.mode.values[modeRaw] ?? String(modeRaw);
+
+      return {
+        raw: { power: powerRaw, temperature: tempRaw, mode: modeRaw },
+        value: { power, temperature: temp, mode },
+      };
+    });
+    response.json(result);
+  } catch (error) {
+    logger.warn({ error }, "HRU read failed");
+    response.status(502).json({ detail: "Failed to read from HRU" });
+  }
+});
+
+app.post("/api/hru/write", async (request: Request, response: Response) => {
+  const raw = getAppSetting(HRU_SETTINGS_KEY);
+  const settings = raw ? (JSON.parse(String(raw)) as HruSettings) : { unit: null, host: "localhost", port: 502, unitId: 1 };
+  if (!settings.unit) {
+    response.status(400).json({ detail: "HRU unit not configured" });
+    return;
+  }
+  const def = getUnitById(settings.unit);
+  if (!def) {
+    response.status(400).json({ detail: "Unknown HRU unit" });
+    return;
+  }
+
+  const body = request.body as { power?: number; temperature?: number; mode?: number | string };
+  if (body.power === undefined && body.temperature === undefined && body.mode === undefined) {
+    response.status(400).json({ detail: "No fields to write" });
+    return;
+  }
+
+  try {
+    await withTempModbusClient({ host: settings.host, port: settings.port, unitId: settings.unitId }, async (mb) => {
+      if (typeof body.power === "number") {
+        await mb.writeHolding(def.registers.requestedPower.address, Math.round(body.power));
+      }
+      if (typeof body.temperature === "number") {
+        const scale = def.registers.requestedTemperature.scale ?? 1;
+        const rawVal = Math.round(body.temperature / scale);
+        await mb.writeHolding(def.registers.requestedTemperature.address, rawVal);
+      }
+      if (body.mode !== undefined) {
+        let rawMode: number;
+        if (typeof body.mode === "number") rawMode = body.mode;
+        else rawMode = Math.max(0, def.registers.mode.values.findIndex((v) => v === body.mode));
+        await mb.writeHolding(def.registers.mode.address, rawMode);
+      }
+    });
+    response.status(204).end();
+  } catch (error) {
+    logger.warn({ error }, "HRU write failed");
+    response.status(502).json({ detail: "Failed to write to HRU" });
+  }
+});
+
+// Timeline API endpoints
+app.get("/api/timeline/events", (_request: Request, response: Response) => {
+  try {
+    const events = getTimelineEvents();
+    response.json(events);
+  } catch (error) {
+    logger.warn({ error }, "Failed to get timeline events");
+    response.status(500).json({ detail: "Failed to retrieve timeline events" });
+  }
+});
+
+app.post("/api/timeline/events", (request: Request, response: Response) => {
+  const body = request.body as {
+    id?: number;
+    startTime?: string;
+    endTime?: string;
+    dayOfWeek?: number | null;
+    hruConfig?: {
+      mode?: string;
+      power?: number;
+      temperature?: number;
+    } | null;
+    luftatorConfig?: Record<string, number> | null;
+    enabled?: boolean;
+    priority?: number;
+  };
+
+  // Validation
+  if (!body.startTime || !body.endTime) {
+    response.status(400).json({ detail: "Start time and end time are required" });
+    return;
+  }
+  
+  const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!timeRegex.test(body.startTime) || !timeRegex.test(body.endTime)) {
+    response.status(400).json({ detail: "Times must be in HH:MM format" });
+    return;
+  }
+  
+  if (body.dayOfWeek !== undefined && body.dayOfWeek !== null && (body.dayOfWeek < 0 || body.dayOfWeek > 6)) {
+    response.status(400).json({ detail: "Day of week must be 0-6 or null for all days" });
+    return;
+  }
+  
+  if (body.priority !== undefined && (body.priority < 0 || body.priority > 100)) {
+    response.status(400).json({ detail: "Priority must be 0-100" });
+    return;
+  }
+
+  try {
+    const event = upsertTimelineEvent({
+      id: body.id,
+      startTime: body.startTime,
+      endTime: body.endTime,
+      dayOfWeek: body.dayOfWeek,
+      hruConfig: body.hruConfig,
+      luftatorConfig: body.luftatorConfig,
+      enabled: body.enabled ?? true,
+      priority: body.priority ?? 0,
+    });
+    response.json(event);
+  } catch (error) {
+    logger.warn({ error }, "Failed to save timeline event");
+    response.status(500).json({ detail: "Failed to save timeline event" });
+  }
+});
+
+app.delete("/api/timeline/events/:id", (request: Request, response: Response) => {
+  const id = Number.parseInt(request.params.id as string, 10);
+  if (!Number.isFinite(id)) {
+    response.status(400).json({ detail: "Invalid event ID" });
+    return;
+  }
+
+  try {
+    deleteTimelineEvent(id);
+    response.status(204).end();
+  } catch (error) {
+    logger.warn({ error, id }, "Failed to delete timeline event");
+    response.status(500).json({ detail: "Failed to delete timeline event" });
+  }
+});
+
+// Addon mode settings
+app.get("/api/settings/mode", (_request: Request, response: Response) => {
+  const raw = getAppSetting(ADDON_MODE_KEY);
+  const mode = ADDON_MODES.includes(raw as AddonMode) ? raw : "manual";
+  response.json({ mode });
+});
+
+app.post("/api/settings/mode", (request: Request, response: Response) => {
+  const { mode } = request.body as { mode?: string };
+  if (!mode || !ADDON_MODES.includes(mode as AddonMode)) {
+    response.status(400).json({ detail: "Invalid mode" });
+    return;
+  }
+  setAppSetting(ADDON_MODE_KEY, mode);
+  response.status(204).end();
+});
+
+app.get("/api/status", (_request: Request, response: Response) => {
+  const ha = haClient
+    ? { connection: haClient.getConnectionState() }
+    : { connection: "offline" };
+  response.json({ ha });
+});
+
+async function probeTcp(host: string, port: number, timeoutMs = 1500): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const socket = new net.Socket();
+    let done = false;
+    function finalize(err?: Error) {
+      if (done) return;
+      done = true;
+      try {
+        socket.destroy();
+      } catch { /* empty */ }
+      if (err) reject(err);
+      else resolve();
+    }
+    socket.setTimeout(timeoutMs);
+    socket.once("error", (err) => finalize(err));
+    socket.once("timeout", () => finalize(new Error("timeout")));
+    socket.connect(port, host, () => finalize());
+  });
+}
+
+app.get("/api/modbus/status", async (request: Request, response: Response) => {
+  const hostQ = String((request.query.host as string | undefined) ?? "").trim();
+  const portQ = String((request.query.port as string | undefined) ?? "").trim();
+  const host = hostQ || "localhost";
+  const port = Number.isFinite(Number.parseInt(portQ, 10)) ? Number.parseInt(portQ, 10) : 502;
+
+  try {
+    await probeTcp(host, port);
+    response.json({ reachable: true });
+  } catch (err) {
+    logger.warn({ host, port, err }, "Modbus TCP probe failed");
+    response.json({ reachable: false, error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 const clients = new Set<WebSocket>();
@@ -75,10 +382,14 @@ async function broadcast(message: unknown): Promise<void> {
 }
 
 let valveManager: ValveController;
+let haClient: HomeAssistantClient | null = null;
 
 if (config.token) {
-  const haClient = new HomeAssistantClient(config.baseUrl, config.token, logger);
+  haClient = new HomeAssistantClient(config.baseUrl, config.token, logger);
   valveManager = new ValveManager(haClient, logger, broadcast);
+  haClient.addStatusListener((state) => {
+    void broadcast({ type: "status", payload: { ha: { connection: state } } });
+  });
 } else {
   valveManager = new OfflineValveManager(logger, broadcast);
 }
@@ -286,6 +597,19 @@ wss.on("connection", async (socket) => {
     );
   } catch (error) {
     logger.error({ error }, "Failed to send initial snapshot to websocket client");
+  }
+
+  // Send initial status
+  try {
+    const status = haClient ? haClient.getConnectionState() : "offline";
+    socket.send(
+      JSON.stringify({
+        type: "status",
+        payload: { ha: { connection: status } },
+      }),
+    );
+  } catch (error) {
+    logger.error({ error }, "Failed to send initial status to websocket client");
   }
 });
 

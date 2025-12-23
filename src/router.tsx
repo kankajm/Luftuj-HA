@@ -4,6 +4,7 @@ import { AppLayout } from "./layouts/AppLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ValvesPage } from "./pages/ValvesPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TimelinePage } from "./pages/TimelinePage";
 
 const rootRoute = createRootRoute({
   component: AppLayout,
@@ -27,7 +28,13 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 });
 
-const routeTree = rootRoute.addChildren([dashboardRoute, valvesRoute, settingsRoute]);
+const timelineRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/timeline",
+  component: TimelinePage,
+});
+
+const routeTree = rootRoute.addChildren([dashboardRoute, valvesRoute, settingsRoute, timelineRoute]);
 
 const router = createRouter({ routeTree });
 

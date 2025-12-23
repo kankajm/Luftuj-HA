@@ -29,6 +29,7 @@ export function AppLayout() {
     () => [
       { to: "/", label: t("app.nav.dashboard") },
       { to: "/valves", label: t("app.nav.valves") },
+      { to: "/timeline", label: t("app.nav.timeline") },
       { to: "/settings", label: t("app.nav.settings") },
     ],
     [t],

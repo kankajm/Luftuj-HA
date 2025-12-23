@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   Button,
   Card,
@@ -8,10 +8,14 @@ import {
   Stack,
   Text,
   Title,
+  TextInput,
+  NumberInput,
+  Select,
+  Alert,
   useMantineColorScheme,
   useComputedColorScheme,
 } from "@mantine/core";
-import { IconDownload, IconUpload } from "@tabler/icons-react";
+import { IconDownload, IconUpload, IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
@@ -23,6 +27,14 @@ export function SettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [savingHru, setSavingHru] = useState(false);
+  const [probingHru, setProbingHru] = useState(false);
+  const [savingMode, setSavingMode] = useState(false);
+  const [hruUnits, setHruUnits] = useState<Array<{ value: string; label: string }>>([]);
+  const [hruSettings, setHruSettings] = useState({ unit: null as string | null, host: "localhost", port: 502, unitId: 1 });
+  const [probeResult, setProbeResult] = useState<{ power: number; temperature: number; mode: string } | null>(null);
+  const [addonMode, setAddonMode] = useState<"manual" | "timeline">("manual");
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme("light", { getInitialValueInEffect: false });
   const { t, i18n } = useTranslation();
@@ -39,6 +51,14 @@ export function SettingsPage() {
     () => [
       { label: t("settings.language.options.en"), value: "en" },
       { label: t("settings.language.options.cs"), value: "cs" },
+    ],
+    [t],
+  );
+
+  const modeOptions = useMemo(
+    () => [
+      { label: t("settings.mode.manual"), value: "manual" },
+      { label: t("settings.mode.timeline"), value: "timeline" },
     ],
     [t],
   );
@@ -161,6 +181,164 @@ export function SettingsPage() {
       void persistLanguagePreference(value);
     },
     [persistLanguagePreference],
+  );
+
+  // Load HRU units and settings on mount
+  useEffect(() => {
+    async function loadHruData() {
+      setLoadingUnits(true);
+      try {
+        const [unitsRes, settingsRes, modeRes] = await Promise.all([
+          fetch(resolveApiUrl("/api/hru/units")),
+          fetch(resolveApiUrl("/api/settings/hru")),
+          fetch(resolveApiUrl("/api/settings/mode")),
+        ]);
+        if (unitsRes.ok) {
+          const units = await unitsRes.json();
+          setHruUnits(units.map((u: { id: string; name: string }) => ({ value: u.id, label: u.name })));
+        }
+        if (settingsRes.ok) {
+          const settings = await settingsRes.json();
+          setHruSettings(settings);
+        }
+        if (modeRes.ok) {
+          const modeData = await modeRes.json();
+          setAddonMode(modeData.mode);
+        }
+      } catch {
+        notifications.show({
+          title: t("settings.hru.notifications.loadFailedTitle"),
+          message: t("settings.hru.notifications.loadFailedMessage"),
+          color: "red",
+        });
+      } finally {
+        setLoadingUnits(false);
+      }
+    }
+    void loadHruData();
+  }, [t]);
+
+  const saveHruSettings = useCallback(async () => {
+    setSavingHru(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/settings/hru"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(hruSettings),
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        notifications.show({
+          title: t("settings.hru.notifications.saveFailedTitle"),
+          message: t("settings.hru.notifications.saveFailedMessage", { message: detail }),
+          color: "red",
+        });
+        return;
+      }
+      notifications.show({
+        title: t("settings.hru.notifications.saveSuccessTitle"),
+        message: t("settings.hru.notifications.saveSuccessMessage"),
+        color: "green",
+      });
+    } catch (error) {
+      notifications.show({
+        title: t("settings.hru.notifications.saveFailedTitle"),
+        message: t("settings.hru.notifications.saveFailedMessage", { message: error instanceof Error ? error.message : t("settings.hru.notifications.unknown") }),
+        color: "red",
+      });
+    } finally {
+      setSavingHru(false);
+    }
+  }, [hruSettings, t]);
+
+  const probeHru = useCallback(async () => {
+    if (!hruSettings.unit) {
+      notifications.show({
+        title: t("settings.hru.notifications.probeFailedTitle"),
+        message: t("settings.hru.notifications.noUnitSelected"),
+        color: "red",
+      });
+      return;
+    }
+    setProbingHru(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/hru/read"));
+      if (!response.ok) {
+        const detail = await response.text();
+        setProbeResult(null);
+        notifications.show({
+          title: t("settings.hru.notifications.probeFailedTitle"),
+          message: t("settings.hru.notifications.probeFailedMessage", { message: detail }),
+          color: "red",
+        });
+        return;
+      }
+      const result = await response.json();
+      setProbeResult(result.value);
+    } catch (error) {
+      setProbeResult(null);
+      notifications.show({
+        title: t("settings.hru.notifications.probeFailedTitle"),
+        message: t("settings.hru.notifications.probeFailedMessage", { message: error instanceof Error ? error.message : t("settings.hru.notifications.unknown") }),
+        color: "red",
+      });
+    } finally {
+      setProbingHru(false);
+    }
+  }, [hruSettings.unit, t]);
+
+  const persistModePreference = useCallback(
+    async (value: "manual" | "timeline") => {
+      setSavingMode(true);
+      try {
+        const response = await fetch(resolveApiUrl("/api/settings/mode"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: value }),
+        });
+        if (!response.ok) {
+          const detail = await response.text();
+          notifications.show({
+            title: t("settings.mode.notifications.failedTitle"),
+            message: t("settings.mode.notifications.failedMessage", {
+              message: detail || t("settings.mode.notifications.unknown"),
+            }),
+            color: "red",
+          });
+          return;
+        }
+        notifications.show({
+          title: t("settings.mode.notifications.updatedTitle"),
+          message: t("settings.mode.notifications.updatedMessage", {
+            mode: value === "timeline" ? t("settings.mode.timeline") : t("settings.mode.manual"),
+          }),
+          color: value === "timeline" ? "violet" : "blue",
+        });
+      } catch (persistError) {
+        notifications.show({
+          title: t("settings.mode.notifications.failedTitle"),
+          message: t("settings.mode.notifications.failedMessage", {
+            message:
+              persistError instanceof Error
+                ? persistError.message
+                : t("settings.mode.notifications.unknown"),
+          }),
+          color: "red",
+        });
+      } finally {
+        setSavingMode(false);
+      }
+    },
+    [t],
+  );
+
+  const handleModeChange = useCallback(
+    (value: string) => {
+      const mode = value === "timeline" ? "timeline" : "manual";
+      setAddonMode(mode);
+      void persistModePreference(mode);
+    },
+    [persistModePreference],
   );
 
   async function handleExport() {
@@ -323,6 +501,106 @@ export function SettingsPage() {
             onChange={handleThemeChange}
             disabled={savingTheme}
           />
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="lg" radius="md">
+        <Stack gap="md">
+          <Title order={4}>{t("settings.mode.title")}</Title>
+          <Text size="sm" c="dimmed">
+            {t("settings.mode.description")}
+          </Text>
+          <SegmentedControl
+            fullWidth
+            value={addonMode}
+            data={modeOptions}
+            onChange={handleModeChange}
+            disabled={savingMode}
+          />
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="lg" radius="md">
+        <Stack gap="md">
+          <Title order={4}>{t("settings.hru.title")}</Title>
+          <Text size="sm" c="dimmed">
+            {t("settings.hru.description")}
+          </Text>
+          <Text size="xs" c="blue">
+            {t("settings.hru.saveBeforeProbeHint")}
+          </Text>
+          <Select
+            data={hruUnits}
+            value={hruSettings.unit ?? ""}
+            onChange={(value) => {
+              setHruSettings((prev) => ({ ...prev, unit: value === "" ? null : value }));
+              setProbeResult(null);
+            }}
+            label={t("settings.hru.unitLabel")}
+            placeholder={t("settings.hru.unitPlaceholder")}
+            disabled={loadingUnits}
+            searchable
+            clearable
+          />
+          <Group grow>
+            <TextInput
+              value={hruSettings.host}
+              onChange={(e) => {
+                setHruSettings((prev) => ({ ...prev, host: e.target.value }));
+                setProbeResult(null);
+              }}
+              label={t("settings.hru.hostLabel")}
+              placeholder="localhost"
+              error={hruSettings.host.trim() === "" ? t("settings.hru.hostRequired") : undefined}
+            />
+            <NumberInput
+              value={hruSettings.port}
+              onChange={(value) => {
+                const numericValue = typeof value === "number" ? value : Number(value ?? 502);
+                setHruSettings((prev) => ({ ...prev, port: Number.isFinite(numericValue) ? numericValue : 502 }));
+                setProbeResult(null);
+              }}
+              label={t("settings.hru.portLabel")}
+              min={1}
+              max={65535}
+              step={1}
+            />
+            <NumberInput
+              value={hruSettings.unitId}
+              onChange={(value) => {
+                const numericValue = typeof value === "number" ? value : Number(value ?? 1);
+                setHruSettings((prev) => ({ ...prev, unitId: Number.isFinite(numericValue) ? numericValue : 1 }));
+                setProbeResult(null);
+              }}
+              label={t("settings.hru.unitIdLabel")}
+              min={1}
+              max={247}
+              step={1}
+            />
+          </Group>
+          <Group>
+            <Button onClick={saveHruSettings} loading={savingHru} disabled={loadingUnits || hruSettings.host.trim() === ""}>
+              {t("settings.hru.save")}
+            </Button>
+            <Button onClick={probeHru} loading={probingHru} disabled={!hruSettings.unit || loadingUnits || hruSettings.host.trim() === ""} variant="light">
+              {t("settings.hru.probe")}
+            </Button>
+          </Group>
+          {probeResult && (
+            <Alert icon={<IconAlertCircle size={16} />} title={t("settings.hru.probeResultTitle")} color="blue" withCloseButton onClose={() => setProbeResult(null)}>
+              <Stack gap="xs">
+                <Text size="sm">
+                  {t("settings.hru.powerLabel")}: {probeResult.power}%
+                </Text>
+                <Text size="sm">
+                  {t("settings.hru.temperatureLabel")}: {probeResult.temperature}°C
+                </Text>
+                <Text size="sm">
+                  {t("settings.hru.modeLabel")}: {probeResult.mode}
+                </Text>
+              </Stack>
+            </Alert>
+          )}
         </Stack>
       </Card>
 

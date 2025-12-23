@@ -73,6 +73,8 @@ const RECONNECT_DELAY_MS = 5_000;
 export class HomeAssistantClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
+  private connectionState: "disconnected" | "connecting" | "connected" = "disconnected";
+  private statusListeners: Array<(state: "disconnected" | "connecting" | "connected") => void> = [];
 
   constructor(
     baseUrl: string,
@@ -125,6 +127,16 @@ export class HomeAssistantClient {
     const websocketUrl = this.toWebSocketUrl("/api/websocket");
     const { logger, headers } = this;
     const boundHandleMessage = this.handleWebSocketMessage.bind(this);
+    const setState = (state: "disconnected" | "connecting" | "connected") => {
+      this.connectionState = state;
+      for (const listener of this.statusListeners) {
+        try {
+          listener(state);
+        } catch {
+          // ignore listener errors
+        }
+      }
+    };
 
     function clearReconnectTimer(): void {
       if (reconnectTimer) {
@@ -148,6 +160,7 @@ export class HomeAssistantClient {
         socket.terminate();
         socket = null;
       }
+      setState("disconnected");
     }
 
     function connect(): void {
@@ -157,8 +170,12 @@ export class HomeAssistantClient {
 
       cleanupSocket();
       clearReconnectTimer();
-
+      // mark connecting
       logger.info({ url: websocketUrl }, "Connecting to Home Assistant WebSocket");
+      // Note: since this is an inner function, update via header-bound logger and a state setter below
+      // We cannot access `this` here; expose a state setter through closures instead.
+      setState("connecting");
+
       socket = new WebSocket(websocketUrl, {
         headers: {
           Authorization: headers.Authorization,
@@ -167,6 +184,7 @@ export class HomeAssistantClient {
 
       socket.on("open", () => {
         logger.info("Home Assistant WebSocket connection established");
+        setState("connected");
       });
 
       socket.on("message", (data) => {
@@ -184,10 +202,12 @@ export class HomeAssistantClient {
 
       socket.on("error", (error) => {
         logger.error({ error }, "Home Assistant WebSocket error");
+        setState("disconnected");
       });
 
       socket.on("close", (code, reason) => {
         const message = reason.toString() || "socket closed";
+        setState("disconnected");
         scheduleReconnect(`${code}: ${message}`);
       });
     }
@@ -198,6 +218,19 @@ export class HomeAssistantClient {
       active = false;
       clearReconnectTimer();
       cleanupSocket();
+    };
+  }
+
+  getConnectionState(): "disconnected" | "connecting" | "connected" {
+    return this.connectionState;
+  }
+
+  addStatusListener(
+    listener: (state: "disconnected" | "connecting" | "connected") => void,
+  ): () => void {
+    this.statusListeners.push(listener);
+    return () => {
+      this.statusListeners = this.statusListeners.filter((l) => l !== listener);
     };
   }
 

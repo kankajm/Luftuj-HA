@@ -4,6 +4,7 @@
     "nav": {
       "dashboard": "Přehled",
       "valves": "Ventily",
+      "timeline": "Časová osa",
       "settings": "Nastavení",
       "navigate": "Navigace",
       "toggle": "Přepnout navigaci"
@@ -47,6 +48,102 @@
         "unknown": "Neznámá chyba"
       }
     },
+    "mode": {
+      "title": "Režim doplňku",
+      "description": "Zvolte způsob provozu doplňku",
+      "manual": "Ruční",
+      "timeline": "Časová osa",
+      "notifications": {
+        "updatedTitle": "Režim změněn",
+        "updatedMessage": "Režim doplňku změněn na {{mode}}",
+        "failedTitle": "Chyba změny režimu",
+        "failedMessage": "{{message}}",
+        "unknown": "Neznámá chyba"
+      }
+    },
+    "timeline": {
+      "title": "Časová osa",
+      "description": "Naplánujte, kdy by se měly HRU a Luftator akce dít během týdne",
+      "addEvent": "Přidat událost",
+      "edit": "Upravit",
+      "delete": "Smazat",
+      "enabled": "Povoleno",
+      "disabled": "Zakázáno",
+      "loading": "Načítání událostí...",
+      "noEvents": "Žádné nakonfigurované události",
+      "confirmDelete": "Opravdu chcete smazat tuto událost?",
+      "hru": "HRU",
+      "valves": "Ventily",
+      "allDays": "Všechny dny",
+      "monday": "Pondělí",
+      "tuesday": "Úterý",
+      "wednesday": "Středa",
+      "thursday": "Čtvrtek",
+      "friday": "Pátek",
+      "saturday": "Sobota",
+      "sunday": "Neděle",
+      "form": {
+        "startTime": "Čas začátku",
+        "endTime": "Čas konce",
+        "dayOfWeek": "Den v týdnu",
+        "priority": "Priorita",
+        "hruSettings": "Nastavení HRU",
+        "valveSettings": "Nastavení ventilů"
+      },
+      "modal": {
+        "title": "Událost časové osy",
+        "save": "Uložit",
+        "cancel": "Zrušit"
+      },
+      "notifications": {
+        "loadFailedTitle": "Chyba načítání událostí",
+        "loadFailedMessage": "Nepodařilo se načíst události časové osy",
+        "saveSuccessTitle": "Událost uložena",
+        "saveSuccessMessage": "Událost časové osy úspěšně uložena",
+        "saveFailedTitle": "Chyba ukládání události",
+        "saveFailedMessage": "{{message}}",
+        "deleteSuccessTitle": "Událost smazána",
+        "deleteSuccessMessage": "Událost časové osy úspěšně smazána",
+        "deleteFailedTitle": "Chyba mazání události",
+        "deleteFailedMessage": "{{message}}",
+        "validationFailedTitle": "Validace selhala",
+        "invalidTimeFormat": "Čas musí být ve formátu HH:MM (24hodinový)",
+        "startTimeBeforeEnd": "Čas začátku musí být před časem konce",
+        "toggleFailedTitle": "Chyba přepnutí události",
+        "toggleFailedMessage": "Nepodařilo se povolit/zakázat událost",
+        "unknown": "Neznámá chyba"
+      },
+      "priorityDescription": "Vyšší priorita vyhrává při překrývajících se událostech"
+    },
+    "hru": {
+      "title": "Větrací jednotka",
+      "description": "Konfigurujte vaši HRU jednotku a Modbus TCP připojení",
+      "saveBeforeProbeHint": "Uložte nastavení před testováním pro použití nejnovější konfigurace.",
+      "unitLabel": "HRU jednotka",
+      "unitPlaceholder": "Vyberte jednotku",
+      "hostLabel": "Modbus host",
+      "portLabel": "Port",
+      "unitIdLabel": "ID jednotky",
+      "hostRequired": "Host je povinný",
+      "save": "Uložit nastavení",
+      "probe": "Testovat připojení",
+      "probeResultTitle": "Aktuální hodnoty HRU",
+      "powerLabel": "Výkon",
+      "temperatureLabel": "Teplota",
+      "modeLabel": "Režim",
+      "notifications": {
+        "loadFailedTitle": "Chyba načítání HRU dat",
+        "loadFailedMessage": "Nepodařilo se načíst dostupné jednotky nebo aktuální nastavení",
+        "saveSuccessTitle": "Nastavení uloženo",
+        "saveSuccessMessage": "Konfigurace HRU byla úspěšně uložena",
+        "saveFailedTitle": "Chyba ukládání nastavení",
+        "saveFailedMessage": "{{message}}",
+        "probeFailedTitle": "Test selhal",
+        "probeFailedMessage": "{{message}}",
+        "noUnitSelected": "Nejprve vyberte HRU jednotku",
+        "unknown": "Neznámá chyba"
+      }
+    },
     "database": {
       "title": "Nástroje databáze",
       "description": "Export stáhne aktuální SQLite databázi (`/data/luftator.db`). Import nahradí stávající soubor po vytvoření zálohy.",
@@ -67,7 +164,23 @@
   },
   "dashboard": {
     "title": "Přehled",
-    "placeholder": "Přehledové widgety budou k dispozici brzy."
+    "placeholder": "Přehledové widgety budou k dispozici brzy.",
+    "haStatusTitle": "Home Assistant",
+    "haStatusDescription": "Backend připojení k WebSocketu Home Assistantu",
+    "haStatus": {
+      "connected": "Připojeno",
+      "connecting": "Připojování…",
+      "disconnected": "Odpojeno",
+      "offline": "Offline",
+      "loading": "Načítání…"
+    },
+    "modbusStatusTitle": "Modbus TCP",
+    "modbusStatusDescription": "Dostupnost nakonfigurovaného Modbus TCP serveru",
+    "modbusStatus": {
+      "notConfigured": "Není nakonfigurováno",
+      "reachable": "Dostupný",
+      "unreachable": "Nedostupný"
+    }
   },
   "valves": {
     "title": "Zóny Luftatoru",

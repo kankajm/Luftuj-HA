@@ -4,6 +4,7 @@
     "nav": {
       "dashboard": "Dashboard",
       "valves": "Valves",
+      "timeline": "Timeline",
       "settings": "Settings",
       "navigate": "Navigate",
       "toggle": "Toggle navigation"
@@ -64,6 +65,102 @@
         "unknown": "Unknown error"
       }
     },
+    "mode": {
+      "title": "Addon Mode",
+      "description": "Choose how the addon operates",
+      "manual": "Manual",
+      "timeline": "Timeline",
+      "notifications": {
+        "updatedTitle": "Mode updated",
+        "updatedMessage": "Addon mode changed to {{mode}}",
+        "failedTitle": "Failed to update mode",
+        "failedMessage": "{{message}}",
+        "unknown": "Unknown error"
+      }
+    },
+    "timeline": {
+      "title": "Timeline Events",
+      "description": "Schedule when HRU and Luftator actions should occur throughout the week",
+      "addEvent": "Add Event",
+      "edit": "Edit",
+      "delete": "Delete",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "loading": "Loading events...",
+      "noEvents": "No events configured",
+      "confirmDelete": "Are you sure you want to delete this event?",
+      "hru": "HRU",
+      "valves": "Valves",
+      "allDays": "All days",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday",
+      "form": {
+        "startTime": "Start Time",
+        "endTime": "End Time",
+        "dayOfWeek": "Day of Week",
+        "priority": "Priority",
+        "hruSettings": "HRU Settings",
+        "valveSettings": "Valve Settings"
+      },
+      "modal": {
+        "title": "Timeline Event",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "notifications": {
+        "loadFailedTitle": "Failed to load events",
+        "loadFailedMessage": "Could not load timeline events",
+        "saveSuccessTitle": "Event saved",
+        "saveSuccessMessage": "Timeline event saved successfully",
+        "saveFailedTitle": "Failed to save event",
+        "saveFailedMessage": "{{message}}",
+        "deleteSuccessTitle": "Event deleted",
+        "deleteSuccessMessage": "Timeline event deleted successfully",
+        "deleteFailedTitle": "Failed to delete event",
+        "deleteFailedMessage": "{{message}}",
+        "validationFailedTitle": "Validation failed",
+        "invalidTimeFormat": "Time must be in HH:MM format (24-hour)",
+        "startTimeBeforeEnd": "Start time must be before end time",
+        "toggleFailedTitle": "Failed to toggle event",
+        "toggleFailedMessage": "Could not enable/disable the event",
+        "unknown": "Unknown error"
+      },
+      "priorityDescription": "Higher priority wins when events overlap"
+    },
+    "hru": {
+      "title": "Heat Recovery Unit",
+      "description": "Configure your HRU unit and Modbus TCP connection",
+      "saveBeforeProbeHint": "Save your settings before probing to use the latest configuration.",
+      "unitLabel": "HRU Unit",
+      "unitPlaceholder": "Select a unit",
+      "hostLabel": "Modbus Host",
+      "portLabel": "Port",
+      "unitIdLabel": "Unit ID",
+      "hostRequired": "Host is required",
+      "save": "Save Settings",
+      "probe": "Probe Connection",
+      "probeResultTitle": "Current HRU Values",
+      "powerLabel": "Power",
+      "temperatureLabel": "Temperature",
+      "modeLabel": "Mode",
+      "notifications": {
+        "loadFailedTitle": "Failed to load HRU data",
+        "loadFailedMessage": "Could not load available units or current settings",
+        "saveSuccessTitle": "Settings saved",
+        "saveSuccessMessage": "HRU configuration has been saved successfully",
+        "saveFailedTitle": "Failed to save settings",
+        "saveFailedMessage": "{{message}}",
+        "probeFailedTitle": "Probe failed",
+        "probeFailedMessage": "{{message}}",
+        "noUnitSelected": "Please select an HRU unit first",
+        "unknown": "Unknown error"
+      }
+    },
     "database": {
       "title": "Database tools",
       "description": "Export downloads the current SQLite database (`/data/luftator.db`). Import replaces the existing file after creating a backup.",
@@ -85,20 +182,22 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "placeholder": "Overview widgets coming soon."
-  },
-  "valves": {
-    "title": "Luftator Zones",
-    "description": "Control Luftator valve actuators installed by Luftuj across each room.",
-    "refreshAria": "Refresh valves",
-    "alertTitle": "Error",
-    "empty": "No valves found for prefix `number.luftator`.",
-    "errors": {
-      "load": "Failed to load valves: {{message}}",
-      "loadUnknown": "Failed to load valves.",
-      "websocket": "Unable to parse live valve update.",
-      "setValue": "Failed to set valve value: {{message}}",
-      "setValueUnknown": "Failed to set valve value."
+    "placeholder": "Overview widgets coming soon.",
+    "haStatusTitle": "Home Assistant",
+    "haStatusDescription": "Backend connection to Home Assistant WebSocket",
+    "haStatus": {
+      "connected": "Connected",
+      "connecting": "Connecting…",
+      "disconnected": "Disconnected",
+      "offline": "Offline",
+      "loading": "Loading…"
+    },
+    "modbusStatusTitle": "Modbus TCP",
+    "modbusStatusDescription": "Reachability of the configured Modbus TCP server",
+    "modbusStatus": {
+      "notConfigured": "Not configured",
+      "reachable": "Reachable",
+      "unreachable": "Unreachable"
     }
   },
   "errors": {
