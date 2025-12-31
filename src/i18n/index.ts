@@ -27,7 +27,8 @@ export function isSupportedLanguage(language: string): language is SupportedLang
   return Object.prototype.hasOwnProperty.call(resources, language);
 }
 
-export const i18nReady = i18n
+// Initialize i18n on module load; we don't need the returned promise elsewhere.
+void i18n
   .use(initReactI18next)
   .init({
     resources,
@@ -38,7 +39,7 @@ export const i18nReady = i18n
     },
   })
   .catch((error) => {
-    logger.error("Failed to initialise i18n", { error });
+    logger.error("Failed to initialize i18n", { error });
     if (typeof window !== "undefined") {
       notifications.show({
         title: i18n.t("errors.i18n.title"),

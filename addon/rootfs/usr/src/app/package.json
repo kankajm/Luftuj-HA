@@ -18,13 +18,13 @@
     "modbus-serial": "^8.0.23",
     "pino": "^10.1.0",
     "ws": "^8.18.3",
-    "zod": "^4.1.13"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^20.19.25",
+    "@types/node": "^20.19.27",
     "@types/pino": "^7.0.5",
     "@types/ws": "^8.18.1",
     "prettier": "^3.7.4",

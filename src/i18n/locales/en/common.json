@@ -82,6 +82,16 @@
       "title": "Timeline Events",
       "description": "Schedule when HRU and Luftator actions should occur throughout the week",
       "addEvent": "Add Event",
+      "addMode": "Add mode",
+      "modesTitle": "Modes",
+      "modeName": "Mode name",
+      "modePlaceholder": "e.g., Comfort",
+      "modePower": "Power (%)",
+      "modeTemperature": "Temperature (°C)",
+      "modeColor": "Color (optional)",
+      "modeDialogTitle": "Create mode",
+      "modeCreateAction": "Create",
+      "noModes": "No modes yet.",
       "edit": "Edit",
       "delete": "Delete",
       "enabled": "Enabled",
@@ -115,6 +125,7 @@
       "notifications": {
         "loadFailedTitle": "Failed to load events",
         "loadFailedMessage": "Could not load timeline events",
+        "loadFailedModes": "Failed to load modes",
         "saveSuccessTitle": "Event saved",
         "saveSuccessMessage": "Timeline event saved successfully",
         "saveFailedTitle": "Failed to save event",
@@ -126,6 +137,13 @@
         "validationFailedTitle": "Validation failed",
         "invalidTimeFormat": "Time must be in HH:MM format (24-hour)",
         "startTimeBeforeEnd": "Start time must be before end time",
+        "modeNameRequired": "Mode name is required",
+        "modeCreated": "Mode created",
+        "modeUpdated": "Mode updated",
+        "deleteSuccessTitle": "Mode deleted",
+        "deleteSuccessMessage": "Mode deleted successfully",
+        "invalidPower": "Power must be between 0 and 90",
+        "invalidTemperature": "Temperature must be between -50 and 100",
         "toggleFailedTitle": "Failed to toggle event",
         "toggleFailedMessage": "Could not enable/disable the event",
         "unknown": "Unknown error"
@@ -180,6 +198,32 @@
       }
     }
   },
+  "schedule": {
+    "title": "Weekly schedule",
+    "description": "Set when the HRU should switch modes during the week.",
+    "add": "Add entry",
+    "empty": "No entries for this day",
+    "copyHint": "Copy a day's plan and paste it to another day.",
+    "copying": "Copying {{day}}… click another day to paste.",
+    "copyDay": "Copy this day",
+    "pasteDay": "Paste copied day here",
+    "cancelCopy": "Cancel copy",
+    "modeLabel": "Mode",
+    "modeSelect": "Select mode",
+    "modalTitle": "Schedule entry",
+    "notifications": {
+      "loadFailedTitle": "Failed to load schedule",
+      "loadFailedModes": "Could not load HRU modes. Configure HRU unit first.",
+      "loadFailedEvents": "Could not load schedule entries.",
+      "validationFailedTitle": "Validation failed",
+      "saveFailedTitle": "Failed to save entry",
+      "saveFailedMessage": "Could not save this entry.",
+      "saveSuccessTitle": "Entry saved",
+      "saveSuccessMessage": "Schedule entry saved successfully.",
+      "deleteFailedTitle": "Failed to delete entry",
+      "deleteFailedMessage": "Could not delete this entry."
+    }
+  },
   "dashboard": {
     "title": "Dashboard",
     "placeholder": "Overview widgets coming soon.",
@@ -198,7 +242,12 @@
       "notConfigured": "Not configured",
       "reachable": "Reachable",
       "unreachable": "Unreachable"
-    }
+    },
+    "hruStatusTitle": "HRU live values",
+    "hruStatusDescription": "Reads HRU registers every 10 seconds",
+    "hruStatusOk": "OK",
+    "hruStatusError": "Error",
+    "hruMode": "Mode"
   },
   "errors": {
     "i18n": {

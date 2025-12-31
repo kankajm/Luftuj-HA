@@ -28,3 +28,4 @@ addon/rootfs/usr/data/luftator.db*
 *.sln
 *.sw?
 *.iml
+/exampleui/

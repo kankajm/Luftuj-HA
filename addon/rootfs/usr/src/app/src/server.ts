@@ -79,6 +79,7 @@ const HRU_SETTINGS_KEY = "hru.settings";
 const ADDON_MODE_KEY = "addon.mode";
 const ADDON_MODES = ["manual", "timeline"] as const;
 type AddonMode = typeof ADDON_MODES[number];
+const TIMELINE_MODES_KEY = "timeline.modes";
 
 app.get("/api/hru/units", (_request: Request, response: Response) => {
   response.json(
@@ -93,6 +94,205 @@ app.get("/api/hru/units", (_request: Request, response: Response) => {
       },
     })),
   );
+});
+
+type TimelineMode = {
+  id: number;
+  name: string;
+  color?: string;
+  power?: number;
+  temperature?: number;
+  luftatorConfig?: Record<string, number>;
+};
+
+function getTimelineModes(): TimelineMode[] {
+  const raw = getAppSetting(TIMELINE_MODES_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(String(raw)) as TimelineMode[];
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTimelineModes(modes: TimelineMode[]) {
+  setAppSetting(TIMELINE_MODES_KEY, JSON.stringify(modes));
+}
+
+app.get("/api/timeline/modes", (_request: Request, response: Response) => {
+  response.json({ modes: getTimelineModes() });
+});
+
+app.post("/api/timeline/modes", (request: Request, response: Response) => {
+  const { name, color, power, temperature, luftatorConfig } = request.body as {
+    name?: string;
+    color?: string;
+    power?: number;
+    temperature?: number;
+    luftatorConfig?: Record<string, number>;
+  };
+  const trimmed = (name ?? "").toString().trim();
+  if (!trimmed) {
+    response.status(400).json({ detail: "Mode name is required" });
+    return;
+  }
+  if (power !== undefined && (Number.isNaN(power) || power < 0 || power > 90)) {
+    response.status(400).json({ detail: "Power must be between 0 and 90" });
+    return;
+  }
+  if (temperature !== undefined && (Number.isNaN(temperature) || temperature < -50 || temperature > 100)) {
+    response.status(400).json({ detail: "Temperature must be between -50 and 100" });
+    return;
+  }
+  if (luftatorConfig !== undefined) {
+    if (typeof luftatorConfig !== "object" || Array.isArray(luftatorConfig)) {
+      response.status(400).json({ detail: "luftatorConfig must be an object of valve->percentage" });
+      return;
+    }
+    for (const [key, value] of Object.entries(luftatorConfig)) {
+      if (value === null || value === undefined) {
+        continue;
+      }
+      if (Number.isNaN(Number(value)) || Number(value) < 0 || Number(value) > 90) {
+        response.status(400).json({ detail: `Invalid opening for valve ${key}. Must be 0-90.` });
+        return;
+      }
+    }
+  }
+  const modes = getTimelineModes();
+  const nextId = modes.reduce((acc, m) => Math.max(acc, m.id), 0) + 1;
+  const newMode: TimelineMode = {
+    id: nextId,
+    name: trimmed,
+    color,
+    power,
+    temperature,
+    luftatorConfig: luftatorConfig
+      ? Object.fromEntries(
+          Object.entries(luftatorConfig)
+            .filter(([, v]) => v !== undefined && v !== null && !Number.isNaN(Number(v)))
+            .map(([k, v]) => [k, Number(v)]),
+        )
+      : undefined,
+  };
+  modes.push(newMode);
+  saveTimelineModes(modes);
+  response.status(201).json(newMode);
+});
+
+app.put("/api/timeline/modes/:id", (request: Request, response: Response) => {
+  const id = Number.parseInt(request.params.id as string, 10);
+  if (!Number.isFinite(id)) {
+    response.status(400).json({ detail: "Invalid mode id" });
+    return;
+  }
+  const { name, color, power, temperature, luftatorConfig } = request.body as {
+    name?: string;
+    color?: string;
+    power?: number;
+    temperature?: number;
+    luftatorConfig?: Record<string, number>;
+  };
+  const trimmed = (name ?? "").toString().trim();
+  if (!trimmed) {
+    response.status(400).json({ detail: "Mode name is required" });
+    return;
+  }
+  if (power !== undefined && (Number.isNaN(power) || power < 0 || power > 90)) {
+    response.status(400).json({ detail: "Power must be between 0 and 90" });
+    return;
+  }
+  if (temperature !== undefined && (Number.isNaN(temperature) || temperature < -50 || temperature > 100)) {
+    response.status(400).json({ detail: "Temperature must be between -50 and 100" });
+    return;
+  }
+  if (luftatorConfig !== undefined) {
+    if (typeof luftatorConfig !== "object" || Array.isArray(luftatorConfig)) {
+      response.status(400).json({ detail: "luftatorConfig must be an object of valve->percentage" });
+      return;
+    }
+    for (const [key, value] of Object.entries(luftatorConfig)) {
+      if (value === null || value === undefined) {
+        continue;
+      }
+      if (Number.isNaN(Number(value)) || Number(value) < 0 || Number(value) > 100) {
+        response.status(400).json({ detail: `Invalid opening for valve ${key}. Must be 0-100.` });
+        return;
+      }
+    }
+  }
+  const modes = getTimelineModes();
+  const idx = modes.findIndex((m) => m.id === id);
+  if (idx === -1) {
+    response.status(404).json({ detail: "Mode not found" });
+    return;
+  }
+  const baseMode = modes[idx];
+  if (!baseMode) {
+    response.status(404).json({ detail: "Mode not found" });
+    return;
+  }
+  const updated: TimelineMode = {
+    ...baseMode,
+    id: baseMode.id,
+    name: trimmed,
+    color,
+    power,
+    temperature,
+    luftatorConfig: luftatorConfig
+      ? Object.fromEntries(
+          Object.entries(luftatorConfig)
+            .filter(([, v]) => v !== undefined && v !== null && !Number.isNaN(Number(v)))
+            .map(([k, v]) => [k, Number(v)]),
+        )
+      : undefined,
+  };
+  modes[idx] = updated;
+  saveTimelineModes(modes);
+  response.json(updated);
+});
+
+app.delete("/api/timeline/modes/:id", (request: Request, response: Response) => {
+  const id = Number.parseInt(request.params.id as string, 10);
+  if (!Number.isFinite(id)) {
+    response.status(400).json({ detail: "Invalid mode id" });
+    return;
+  }
+  const modes = getTimelineModes();
+  const filtered = modes.filter((m) => m.id !== id);
+  if (filtered.length === modes.length) {
+    response.status(404).json({ detail: "Mode not found" });
+    return;
+  }
+  saveTimelineModes(filtered);
+  response.status(204).end();
+});
+
+app.get("/api/hru/modes", (_request: Request, response: Response) => {
+  const raw = getAppSetting(HRU_SETTINGS_KEY);
+  const settings = raw
+    ? (JSON.parse(String(raw)) as { unit: string | null })
+    : { unit: null };
+
+  if (!settings.unit) {
+    response.status(400).json({ detail: "HRU unit not configured" });
+    return;
+  }
+
+  const def = getUnitById(settings.unit);
+  if (!def) {
+    response.status(400).json({ detail: "Unknown HRU unit" });
+    return;
+  }
+
+  const modes = def.registers.mode.values.map((name, index) => ({
+    id: index,
+    name,
+  }));
+
+  response.json({ modes });
 });
 
 app.get("/api/settings/hru", (_request: Request, response: Response) => {
@@ -135,6 +335,36 @@ app.post("/api/settings/hru", (request: Request, response: Response) => {
   response.status(204).end();
 });
 
+function requireHruDefinition(
+  response: Response,
+): { settings: HruSettings; def: NonNullable<ReturnType<typeof getUnitById>> } | null {
+  const raw = getAppSetting(HRU_SETTINGS_KEY);
+  const settings = raw ? (JSON.parse(String(raw)) as HruSettings) : { unit: null, host: "localhost", port: 502, unitId: 1 };
+  if (!settings.unit) {
+    response.status(400).json({ detail: "HRU unit not configured" });
+    return null;
+  }
+  const def = getUnitById(settings.unit);
+  if (!def) {
+    response.status(400).json({ detail: "Unknown HRU unit" });
+    return null;
+  }
+  return { settings, def };
+}
+
+function getHruDefinitionSafe(): { settings: HruSettings; def: NonNullable<ReturnType<typeof getUnitById>> } | null {
+  const raw = getAppSetting(HRU_SETTINGS_KEY);
+  const settings = raw ? (JSON.parse(String(raw)) as HruSettings) : { unit: null, host: "localhost", port: 502, unitId: 1 };
+  if (!settings.unit) {
+    return null;
+  }
+  const def = getUnitById(settings.unit);
+  if (!def) {
+    return null;
+  }
+  return { settings, def };
+}
+
 async function withTempModbusClient<T>(cfg: { host: string; port: number; unitId: number }, fn: (client: ModbusTcpClient) => Promise<T>): Promise<T> {
   const client = new ModbusTcpClient({ host: cfg.host, port: cfg.port, unitId: cfg.unitId, timeoutMs: 2000 }, logger);
   try {
@@ -149,17 +379,9 @@ async function withTempModbusClient<T>(cfg: { host: string; port: number; unitId
 }
 
 app.get("/api/hru/read", async (_request: Request, response: Response) => {
-  const raw = getAppSetting(HRU_SETTINGS_KEY);
-  const settings = raw ? (JSON.parse(String(raw)) as HruSettings) : { unit: null, host: "localhost", port: 502, unitId: 1 };
-  if (!settings.unit) {
-    response.status(400).json({ detail: "HRU unit not configured" });
-    return;
-  }
-  const def = getUnitById(settings.unit);
-  if (!def) {
-    response.status(400).json({ detail: "Unknown HRU unit" });
-    return;
-  }
+  const ctx = requireHruDefinition(response);
+  if (!ctx) return;
+  const { settings, def } = ctx;
 
   try {
     const result = await withTempModbusClient({ host: settings.host, port: settings.port, unitId: settings.unitId }, async (mb) => {
@@ -184,17 +406,9 @@ app.get("/api/hru/read", async (_request: Request, response: Response) => {
 });
 
 app.post("/api/hru/write", async (request: Request, response: Response) => {
-  const raw = getAppSetting(HRU_SETTINGS_KEY);
-  const settings = raw ? (JSON.parse(String(raw)) as HruSettings) : { unit: null, host: "localhost", port: 502, unitId: 1 };
-  if (!settings.unit) {
-    response.status(400).json({ detail: "HRU unit not configured" });
-    return;
-  }
-  const def = getUnitById(settings.unit);
-  if (!def) {
-    response.status(400).json({ detail: "Unknown HRU unit" });
-    return;
-  }
+  const ctx = requireHruDefinition(response);
+  if (!ctx) return;
+  const { settings, def } = ctx;
 
   const body = request.body as { power?: number; temperature?: number; mode?: number | string };
   if (body.power === undefined && body.temperature === undefined && body.mode === undefined) {
@@ -356,8 +570,22 @@ async function probeTcp(host: string, port: number, timeoutMs = 1500): Promise<v
 app.get("/api/modbus/status", async (request: Request, response: Response) => {
   const hostQ = String((request.query.host as string | undefined) ?? "").trim();
   const portQ = String((request.query.port as string | undefined) ?? "").trim();
-  const host = hostQ || "localhost";
-  const port = Number.isFinite(Number.parseInt(portQ, 10)) ? Number.parseInt(portQ, 10) : 502;
+
+  let savedSettings: HruSettings | null = null;
+  try {
+    const raw = getAppSetting(HRU_SETTINGS_KEY);
+    savedSettings = raw ? (JSON.parse(String(raw)) as HruSettings) : null;
+  } catch {
+    savedSettings = null;
+  }
+
+  const host = hostQ || savedSettings?.host || "localhost";
+  const parsedPort = Number.parseInt(portQ, 10);
+  const port = Number.isFinite(parsedPort)
+    ? parsedPort
+    : Number.isFinite(savedSettings?.port)
+      ? (savedSettings?.port as number)
+      : 502;
 
   try {
     await probeTcp(host, port);
@@ -383,6 +611,152 @@ async function broadcast(message: unknown): Promise<void> {
 
 let valveManager: ValveController;
 let haClient: HomeAssistantClient | null = null;
+let timelineInterval: NodeJS.Timeout | null = null;
+let lastAppliedEventId: number | null = null;
+
+function mapTodayToTimelineDay(): number {
+  // UI uses Monday = 0 ... Sunday = 6
+  const jsDay = new Date().getDay(); // Sunday = 0
+  return jsDay === 0 ? 6 : jsDay - 1;
+}
+
+function timeToMinutes(value: string): number {
+  const parts = value.split(":");
+  const h = Number.parseInt(parts[0] ?? "0", 10);
+  const m = Number.parseInt(parts[1] ?? "0", 10);
+  const hh = Number.isFinite(h) ? h : 0;
+  const mm = Number.isFinite(m) ? m : 0;
+  return hh * 60 + mm;
+}
+
+function pickActiveEvent(): ReturnType<typeof getTimelineEvents>[number] | null {
+  const nowMinutes = timeToMinutes(
+    `${new Date().getHours().toString().padStart(2, "0")}:${new Date().getMinutes().toString().padStart(2, "0")}`,
+  );
+  const today = mapTodayToTimelineDay();
+  const events = getTimelineEvents();
+
+  const candidates = events
+    .filter((e) => e.enabled && (e.dayOfWeek ?? today) === today)
+    .filter((e) => timeToMinutes(e.startTime) <= nowMinutes && nowMinutes < timeToMinutes(e.endTime));
+
+  logger.debug(
+    { today, nowMinutes, candidates: candidates.length },
+    "Timeline: candidate events for current time",
+  );
+
+  if (candidates.length === 0) return null;
+
+  // Highest priority, then latest start time
+  candidates.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    return timeToMinutes(b.startTime) - timeToMinutes(a.startTime);
+  });
+
+  return candidates[0] ?? null;
+}
+
+async function applyTimelineEvent(): Promise<void> {
+  const event = pickActiveEvent();
+  if (!event) {
+    logger.debug("Timeline: no active event for current time");
+    lastAppliedEventId = null;
+    return;
+  }
+
+  if (event.id && lastAppliedEventId === event.id) {
+    logger.debug({ eventId: event.id }, "Timeline: active event already applied");
+    return; // already applied
+  }
+
+  const hasValves = event.luftatorConfig && Object.keys(event.luftatorConfig).length > 0;
+  const hasHru = Boolean(event.hruConfig);
+
+  if (!hasValves && !hasHru) {
+    logger.debug({ eventId: event.id }, "Timeline: active event has no HRU/valve payload");
+    lastAppliedEventId = event.id ?? null;
+    return;
+  }
+
+  logger.info(
+    {
+      eventId: event.id,
+      dayOfWeek: event.dayOfWeek,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      hasValves,
+      hasHru,
+    },
+    "Timeline: applying active event",
+  );
+
+  if (hasValves && event.luftatorConfig) {
+    for (const [entityId, opening] of Object.entries(event.luftatorConfig)) {
+      if (opening === undefined || opening === null) continue;
+      try {
+        await valveManager.setValue(entityId, opening);
+      } catch (err) {
+        logger.warn({ entityId, err }, "Failed to apply valve opening from timeline");
+      }
+    }
+  }
+
+  // Apply HRU settings if available
+  if (hasHru && event.hruConfig) {
+    const hruCtx = getHruDefinitionSafe();
+    if (hruCtx) {
+      const { settings, def } = hruCtx;
+      const { power, temperature, mode } = event.hruConfig;
+      logger.info(
+        { eventId: event.id, power, temperature, mode, host: settings.host, port: settings.port, unitId: settings.unitId },
+        "Timeline: applying HRU settings",
+      );
+      try {
+        await withTempModbusClient({ host: settings.host, port: settings.port, unitId: settings.unitId }, async (mb) => {
+          if (typeof power === "number" && Number.isFinite(power)) {
+            await mb.writeHolding(def.registers.requestedPower.address, Math.round(power));
+          }
+          if (typeof temperature === "number" && Number.isFinite(temperature)) {
+            const scale = def.registers.requestedTemperature.scale ?? 1;
+            const rawVal = Math.round(temperature / scale);
+            await mb.writeHolding(def.registers.requestedTemperature.address, rawVal);
+          }
+          if (mode !== undefined && mode !== null) {
+            let rawMode: number | null = null;
+            if (typeof mode === "number" && Number.isFinite(mode)) {
+              rawMode = mode;
+            } else {
+              const parsed = Number.parseInt(String(mode), 10);
+              if (Number.isFinite(parsed)) {
+                rawMode = parsed;
+              } else {
+                const idx = def.registers.mode.values.findIndex((v) => v === mode);
+                rawMode = idx >= 0 ? idx : 0;
+              }
+            }
+            if (rawMode !== null) {
+              await mb.writeHolding(def.registers.mode.address, rawMode);
+            }
+          }
+        });
+      } catch (err) {
+        logger.warn({ err }, "Failed to apply HRU settings from timeline event");
+      }
+    }
+  }
+
+  lastAppliedEventId = event.id ?? null;
+}
+
+function startTimelineScheduler(): void {
+  if (timelineInterval) {
+    clearInterval(timelineInterval);
+  }
+  timelineInterval = setInterval(() => {
+    void applyTimelineEvent();
+  }, 30_000);
+  void applyTimelineEvent();
+}
 
 if (config.token) {
   haClient = new HomeAssistantClient(config.baseUrl, config.token, logger);
@@ -393,6 +767,8 @@ if (config.token) {
 } else {
   valveManager = new OfflineValveManager(logger, broadcast);
 }
+
+startTimelineScheduler();
 
 app.get("/api/valves", async (_request: Request, response: Response, next: NextFunction) => {
   try {

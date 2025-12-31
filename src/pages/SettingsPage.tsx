@@ -34,7 +34,7 @@ export function SettingsPage() {
   const [hruUnits, setHruUnits] = useState<Array<{ value: string; label: string }>>([]);
   const [hruSettings, setHruSettings] = useState({ unit: null as string | null, host: "localhost", port: 502, unitId: 1 });
   const [probeResult, setProbeResult] = useState<{ power: number; temperature: number; mode: string } | null>(null);
-  const [addonMode, setAddonMode] = useState<"manual" | "timeline">("manual");
+  const [addonMode, setAddonMode] = useState<"manual" | "timeline">("timeline");
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme("light", { getInitialValueInEffect: false });
   const { t, i18n } = useTranslation();
@@ -55,13 +55,7 @@ export function SettingsPage() {
     [t],
   );
 
-  const modeOptions = useMemo(
-    () => [
-      { label: t("settings.mode.manual"), value: "manual" },
-      { label: t("settings.mode.timeline"), value: "timeline" },
-    ],
-    [t],
-  );
+  const modeOptions = useMemo(() => [{ label: t("settings.mode.timeline"), value: "timeline" }], [t]);
 
   const currentLanguage = useMemo(() => {
     const lang = i18n.language ?? "en";
@@ -202,8 +196,7 @@ export function SettingsPage() {
           setHruSettings(settings);
         }
         if (modeRes.ok) {
-          const modeData = await modeRes.json();
-          setAddonMode(modeData.mode);
+          setAddonMode("timeline");
         }
       } catch {
         notifications.show({
@@ -332,14 +325,11 @@ export function SettingsPage() {
     [t],
   );
 
-  const handleModeChange = useCallback(
-    (value: string) => {
-      const mode = value === "timeline" ? "timeline" : "manual";
-      setAddonMode(mode);
-      void persistModePreference(mode);
-    },
-    [persistModePreference],
-  );
+  const handleModeChange = useCallback(() => {
+    const mode = "timeline" as const;
+    setAddonMode(mode);
+    void persistModePreference(mode);
+  }, [persistModePreference]);
 
   async function handleExport() {
     try {
