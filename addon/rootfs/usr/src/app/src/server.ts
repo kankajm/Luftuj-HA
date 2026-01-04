@@ -611,7 +611,7 @@ async function broadcast(message: unknown): Promise<void> {
 
 let valveManager: ValveController;
 let haClient: HomeAssistantClient | null = null;
-let timelineInterval: NodeJS.Timeout | null = null;
+let timelineTimer: NodeJS.Timeout | null = null;
 let lastAppliedEventId: number | null = null;
 
 function mapTodayToTimelineDay(): number {
@@ -662,11 +662,6 @@ async function applyTimelineEvent(): Promise<void> {
     logger.debug("Timeline: no active event for current time");
     lastAppliedEventId = null;
     return;
-  }
-
-  if (event.id && lastAppliedEventId === event.id) {
-    logger.debug({ eventId: event.id }, "Timeline: active event already applied");
-    return; // already applied
   }
 
   const hasValves = event.luftatorConfig && Object.keys(event.luftatorConfig).length > 0;
@@ -748,14 +743,17 @@ async function applyTimelineEvent(): Promise<void> {
   lastAppliedEventId = event.id ?? null;
 }
 
-function startTimelineScheduler(): void {
-  if (timelineInterval) {
-    clearInterval(timelineInterval);
+function scheduleNextTimelineTick(): void {
+  if (timelineTimer) {
+    clearTimeout(timelineTimer);
   }
-  timelineInterval = setInterval(() => {
-    void applyTimelineEvent();
-  }, 30_000);
-  void applyTimelineEvent();
+  const now = new Date();
+  const msUntilNextMinute = 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds());
+  timelineTimer = setTimeout(() => {
+    void applyTimelineEvent().finally(() => {
+      scheduleNextTimelineTick();
+    });
+  }, msUntilNextMinute);
 }
 
 if (config.token) {
@@ -768,7 +766,8 @@ if (config.token) {
   valveManager = new OfflineValveManager(logger, broadcast);
 }
 
-startTimelineScheduler();
+// Run immediately on startup then align to minute boundary (avoids missing exact start times)
+void applyTimelineEvent().finally(() => scheduleNextTimelineTick());
 
 app.get("/api/valves", async (_request: Request, response: Response, next: NextFunction) => {
   try {
