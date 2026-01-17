@@ -11,6 +11,16 @@ export type HruSettings = {
   unitId: number; // Modbus unit/slave id
 };
 
+export const MQTT_SETTINGS_KEY = "mqtt.settings";
+
+export type MqttSettings = {
+  enabled: boolean;
+  host: string;
+  port: number;
+  user?: string;
+  password?: string;
+};
+
 export const ADDON_MODE_KEY = "addon.mode";
 export const ADDON_MODES = ["manual", "timeline"] as const;
 export type AddonMode = (typeof ADDON_MODES)[number];

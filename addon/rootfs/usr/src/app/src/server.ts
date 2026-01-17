@@ -15,6 +15,8 @@ import { ValveManager } from "./core/valveManager";
 import { OfflineValveManager } from "./core/offlineValveManager";
 import { TimelineRunner } from "./services/timelineRunner";
 import { setupDatabase } from "./services/database";
+import { MqttService } from "./services/mqttService";
+import { HruMonitor } from "./services/hruMonitor";
 
 import { createRequestLogger } from "./middleware/requestLogger";
 import { createErrorHandler } from "./middleware/errorHandler";
@@ -75,10 +77,13 @@ if (config.token) {
 
 const timelineRunner = new TimelineRunner(valveManager, logger);
 
+const mqttService = new MqttService(config.mqtt, logger);
+const hruMonitor = new HruMonitor(mqttService, logger);
+
 // Routes
 app.use("/api/hru", createHruRouter(logger));
 app.use("/api/timeline", createTimelineRouter(logger));
-app.use("/api/settings", createSettingsRouter(logger));
+app.use("/api/settings", createSettingsRouter(mqttService, logger));
 app.use("/api/database", createDatabaseRouter(valveManager, logger));
 app.use("/api/valves", createValvesRouter(valveManager, logger));
 app.use("/api", createStatusRouter(haClient, logger));
@@ -178,6 +183,15 @@ async function start() {
   }
 
   try {
+    logger.info("Starting MQTT Service...");
+    await mqttService.connect();
+    hruMonitor.start();
+  } catch (err) {
+    logger.error({ err }, "Failed to start MQTT Service or HRU Monitor");
+    // Continue even if MQTT fails
+  }
+
+  try {
     logger.info("Starting Timeline Runner...");
     timelineRunner.start();
   } catch (err) {
@@ -193,9 +207,11 @@ async function start() {
 async function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down Luftujha backend");
 
+  hruMonitor.stop();
   timelineRunner.stop();
   wss.close();
 
+  await mqttService.disconnect();
   await valveManager.stop();
 
   await new Promise<void>((resolve) => {

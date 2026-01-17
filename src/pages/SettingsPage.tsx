@@ -12,6 +12,8 @@ import {
   NumberInput,
   Select,
   Alert,
+  Switch,
+  PasswordInput,
   useMantineColorScheme,
   useComputedColorScheme,
 } from "@mantine/core";
@@ -32,9 +34,26 @@ export function SettingsPage() {
   const [probingHru, setProbingHru] = useState(false);
   const [savingMode, setSavingMode] = useState(false);
   const [hruUnits, setHruUnits] = useState<Array<{ value: string; label: string }>>([]);
-  const [hruSettings, setHruSettings] = useState({ unit: null as string | null, host: "localhost", port: 502, unitId: 1 });
-  const [probeResult, setProbeResult] = useState<{ power: number; temperature: number; mode: string } | null>(null);
+  const [hruSettings, setHruSettings] = useState({
+    unit: null as string | null,
+    host: "localhost",
+    port: 502,
+    unitId: 1,
+  });
+  const [probeResult, setProbeResult] = useState<{
+    power: number;
+    temperature: number;
+    mode: string;
+  } | null>(null);
   const [addonMode, setAddonMode] = useState<"manual" | "timeline">("timeline");
+  const [savingMqtt, setSavingMqtt] = useState(false);
+  const [mqttSettings, setMqttSettings] = useState({
+    enabled: false,
+    host: "",
+    port: 1883,
+    user: "",
+    password: "",
+  });
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme("light", { getInitialValueInEffect: false });
   const { t, i18n } = useTranslation();
@@ -55,7 +74,10 @@ export function SettingsPage() {
     [t],
   );
 
-  const modeOptions = useMemo(() => [{ label: t("settings.mode.timeline"), value: "timeline" }], [t]);
+  const modeOptions = useMemo(
+    () => [{ label: t("settings.mode.timeline"), value: "timeline" }],
+    [t],
+  );
 
   const currentLanguage = useMemo(() => {
     const lang = i18n.language ?? "en";
@@ -179,17 +201,21 @@ export function SettingsPage() {
 
   // Load HRU units and settings on mount
   useEffect(() => {
-    async function loadHruData() {
+    async function loadData() {
       setLoadingUnits(true);
       try {
-        const [unitsRes, settingsRes, modeRes] = await Promise.all([
+        const [unitsRes, settingsRes, modeRes, mqttRes] = await Promise.all([
           fetch(resolveApiUrl("/api/hru/units")),
           fetch(resolveApiUrl("/api/settings/hru")),
           fetch(resolveApiUrl("/api/settings/mode")),
+          fetch(resolveApiUrl("/api/settings/mqtt")),
         ]);
+
         if (unitsRes.ok) {
           const units = await unitsRes.json();
-          setHruUnits(units.map((u: { id: string; name: string }) => ({ value: u.id, label: u.name })));
+          setHruUnits(
+            units.map((u: { id: string; name: string }) => ({ value: u.id, label: u.name })),
+          );
         }
         if (settingsRes.ok) {
           const settings = await settingsRes.json();
@@ -197,6 +223,17 @@ export function SettingsPage() {
         }
         if (modeRes.ok) {
           setAddonMode("timeline");
+        }
+        if (mqttRes.ok) {
+          const mqtt = await mqttRes.json();
+          // Ensure defaults if missing from API
+          setMqttSettings({
+            enabled: !!mqtt.enabled,
+            host: mqtt.host || "",
+            port: mqtt.port || 1883,
+            user: mqtt.user || "",
+            password: mqtt.password || "",
+          });
         }
       } catch {
         notifications.show({
@@ -208,8 +245,46 @@ export function SettingsPage() {
         setLoadingUnits(false);
       }
     }
-    void loadHruData();
+    void loadData();
   }, [t]);
+
+  const saveMqttSettings = useCallback(async () => {
+    setSavingMqtt(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/settings/mqtt"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mqttSettings),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text();
+        notifications.show({
+          title: t("settings.mqtt.notifications.saveFailedTitle"),
+          message: t("settings.mqtt.notifications.saveFailedMessage", { message: detail }),
+          color: "red",
+        });
+        return;
+      }
+
+      notifications.show({
+        title: t("settings.mqtt.notifications.saveSuccessTitle"),
+        message: t("settings.mqtt.notifications.saveSuccessMessage"),
+        color: "green",
+      });
+    } catch (error) {
+      notifications.show({
+        title: t("settings.mqtt.notifications.saveFailedTitle"),
+        message: t("settings.mqtt.notifications.saveFailedMessage", {
+          message:
+            error instanceof Error ? error.message : t("settings.mqtt.notifications.unknown"),
+        }),
+        color: "red",
+      });
+    } finally {
+      setSavingMqtt(false);
+    }
+  }, [mqttSettings, t]);
 
   const saveHruSettings = useCallback(async () => {
     setSavingHru(true);
@@ -236,7 +311,9 @@ export function SettingsPage() {
     } catch (error) {
       notifications.show({
         title: t("settings.hru.notifications.saveFailedTitle"),
-        message: t("settings.hru.notifications.saveFailedMessage", { message: error instanceof Error ? error.message : t("settings.hru.notifications.unknown") }),
+        message: t("settings.hru.notifications.saveFailedMessage", {
+          message: error instanceof Error ? error.message : t("settings.hru.notifications.unknown"),
+        }),
         color: "red",
       });
     } finally {
@@ -272,7 +349,9 @@ export function SettingsPage() {
       setProbeResult(null);
       notifications.show({
         title: t("settings.hru.notifications.probeFailedTitle"),
-        message: t("settings.hru.notifications.probeFailedMessage", { message: error instanceof Error ? error.message : t("settings.hru.notifications.unknown") }),
+        message: t("settings.hru.notifications.probeFailedMessage", {
+          message: error instanceof Error ? error.message : t("settings.hru.notifications.unknown"),
+        }),
         color: "red",
       });
     } finally {
@@ -547,7 +626,10 @@ export function SettingsPage() {
               value={hruSettings.port}
               onChange={(value) => {
                 const numericValue = typeof value === "number" ? value : Number(value ?? 502);
-                setHruSettings((prev) => ({ ...prev, port: Number.isFinite(numericValue) ? numericValue : 502 }));
+                setHruSettings((prev) => ({
+                  ...prev,
+                  port: Number.isFinite(numericValue) ? numericValue : 502,
+                }));
                 setProbeResult(null);
               }}
               label={t("settings.hru.portLabel")}
@@ -559,7 +641,10 @@ export function SettingsPage() {
               value={hruSettings.unitId}
               onChange={(value) => {
                 const numericValue = typeof value === "number" ? value : Number(value ?? 1);
-                setHruSettings((prev) => ({ ...prev, unitId: Number.isFinite(numericValue) ? numericValue : 1 }));
+                setHruSettings((prev) => ({
+                  ...prev,
+                  unitId: Number.isFinite(numericValue) ? numericValue : 1,
+                }));
                 setProbeResult(null);
               }}
               label={t("settings.hru.unitIdLabel")}
@@ -569,15 +654,30 @@ export function SettingsPage() {
             />
           </Group>
           <Group>
-            <Button onClick={saveHruSettings} loading={savingHru} disabled={loadingUnits || hruSettings.host.trim() === ""}>
+            <Button
+              onClick={saveHruSettings}
+              loading={savingHru}
+              disabled={loadingUnits || hruSettings.host.trim() === ""}
+            >
               {t("settings.hru.save")}
             </Button>
-            <Button onClick={probeHru} loading={probingHru} disabled={!hruSettings.unit || loadingUnits || hruSettings.host.trim() === ""} variant="light">
+            <Button
+              onClick={probeHru}
+              loading={probingHru}
+              disabled={!hruSettings.unit || loadingUnits || hruSettings.host.trim() === ""}
+              variant="light"
+            >
               {t("settings.hru.probe")}
             </Button>
           </Group>
           {probeResult && (
-            <Alert icon={<IconAlertCircle size={16} />} title={t("settings.hru.probeResultTitle")} color="blue" withCloseButton onClose={() => setProbeResult(null)}>
+            <Alert
+              icon={<IconAlertCircle size={16} />}
+              title={t("settings.hru.probeResultTitle")}
+              color="blue"
+              withCloseButton
+              onClose={() => setProbeResult(null)}
+            >
               <Stack gap="xs">
                 <Text size="sm">
                   {t("settings.hru.powerLabel")}: {probeResult.power}%
@@ -591,6 +691,88 @@ export function SettingsPage() {
               </Stack>
             </Alert>
           )}
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="lg" radius="md">
+        <Stack gap="md">
+          <Group justify="space-between">
+            <Stack gap={0}>
+              <Title order={4}>{t("settings.mqtt.title")}</Title>
+              <Text size="sm" c="dimmed">
+                {t("settings.mqtt.description")}
+              </Text>
+            </Stack>
+            <Switch
+              label={t("settings.mqtt.enabled")}
+              checked={mqttSettings.enabled}
+              onChange={(e) => {
+                const checked = e.currentTarget.checked;
+                setMqttSettings((prev) => ({ ...prev, enabled: checked }));
+              }}
+            />
+          </Group>
+
+          {mqttSettings.enabled && (
+            <>
+              <Group grow>
+                <TextInput
+                  value={mqttSettings.host}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMqttSettings((prev) => ({ ...prev, host: val }));
+                  }}
+                  label={t("settings.mqtt.host")}
+                  placeholder="core-mosquitto"
+                  error={
+                    mqttSettings.enabled && mqttSettings.host.trim() === ""
+                      ? t("settings.mqtt.hostRequired")
+                      : undefined
+                  }
+                />
+                <NumberInput
+                  value={mqttSettings.port}
+                  onChange={(value) => {
+                    const num = typeof value === "number" ? value : Number(value ?? 1883);
+                    setMqttSettings((prev) => ({ ...prev, port: num }));
+                  }}
+                  label={t("settings.mqtt.port")}
+                  min={1}
+                  max={65535}
+                />
+              </Group>
+              <Group grow>
+                <TextInput
+                  value={mqttSettings.user}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMqttSettings((prev) => ({ ...prev, user: val }));
+                  }}
+                  label={t("settings.mqtt.user")}
+                  autoComplete="off"
+                />
+                <PasswordInput
+                  value={mqttSettings.password}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMqttSettings((prev) => ({ ...prev, password: val }));
+                  }}
+                  label={t("settings.mqtt.password")}
+                  autoComplete="new-password"
+                />
+              </Group>
+            </>
+          )}
+
+          <Group>
+            <Button
+              onClick={saveMqttSettings}
+              loading={savingMqtt}
+              disabled={mqttSettings.enabled && mqttSettings.host.trim() === ""}
+            >
+              {t("settings.mqtt.save")}
+            </Button>
+          </Group>
         </Stack>
       </Card>
 

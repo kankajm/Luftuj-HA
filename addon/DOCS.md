@@ -11,9 +11,25 @@ The Luftator add-on, built by **Luftuj**, provides a real-time dashboard for val
 
 ## Configuration
 
-The add-on currently exposes only one option:
+The add-on currently exposes the following options:
 
 - `log_level` (`trace`, `debug`, `info`, `notice`, `warning`, `error`, `fatal`) – defaults to `info`
+- `web_port` (1024-65535) - Internal port for the web server, defaults to 8099.
+
+### MQTT Configuration (Optional)
+
+To enable HRU sensor integration into Home Assistant via MQTT Discovery:
+
+- `mqtt_host`: Hostname or IP of the MQTT broker (e.g., `core-mosquitto` or `192.168.1.50`). Leave empty to disable MQTT.
+- `mqtt_port`: MQTT broker port (default `1883`).
+- `mqtt_user`: MQTT username (optional).
+- `mqtt_password`: MQTT password (optional).
+
+When configured, the add-on will publish sensors for:
+
+- Requested Power (%)
+- Requested Temperature (°C)
+- Mode
 
 Future versions will add automation-specific options.
 

@@ -179,6 +179,26 @@
         "unknown": "Unknown error"
       }
     },
+    "mqtt": {
+      "title": "MQTT Integration",
+      "description": "Publish HRU sensors to Home Assistant via MQTT Discovery",
+      "enabled": "Enabled",
+      "host": "Broker Host",
+      "port": "Port",
+      "user": "Username",
+      "password": "Password",
+      "save": "Save MQTT Settings",
+      "hostRequired": "Host is required when enabled",
+      "notifications": {
+        "loadFailedTitle": "Failed to load MQTT settings",
+        "loadFailedMessage": "Could not load MQTT configuration",
+        "saveSuccessTitle": "Settings saved",
+        "saveSuccessMessage": "MQTT configuration saved and service reloaded",
+        "saveFailedTitle": "Failed to save MQTT settings",
+        "saveFailedMessage": "{{message}}",
+        "unknown": "Unknown error"
+      }
+    },
     "database": {
       "title": "Database tools",
       "description": "Export downloads the current SQLite database (`/data/luftator.db`). Import replaces the existing file after creating a backup.",

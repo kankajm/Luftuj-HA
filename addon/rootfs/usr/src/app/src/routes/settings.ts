@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import type { Logger } from "pino";
 import { getAppSetting, setAppSetting } from "../services/database";
+import type { MqttService } from "../services/mqttService";
 import {
   HRU_SETTINGS_KEY,
   ADDON_MODE_KEY,
@@ -11,11 +12,56 @@ import {
   LANGUAGE_SETTING_KEY,
   SUPPORTED_LANGUAGES,
   type HruSettings,
+  MQTT_SETTINGS_KEY,
+  type MqttSettings,
 } from "../types";
 import { HRU_UNITS } from "../hru/definitions";
 
-export function createSettingsRouter(logger: Logger) {
+export function createSettingsRouter(mqttService: MqttService, logger: Logger) {
   const router = Router();
+
+  // MQTT Settings
+  router.get("/mqtt", (_request: Request, response: Response) => {
+    const raw = getAppSetting(MQTT_SETTINGS_KEY);
+    let value: MqttSettings;
+    try {
+      value = raw
+        ? (JSON.parse(String(raw)) as MqttSettings)
+        : { enabled: false, host: "", port: 1883 };
+    } catch {
+      logger.warn({ raw }, "Failed to parse stored MQTT settings; falling back to defaults");
+      value = { enabled: false, host: "", port: 1883 };
+    }
+    response.json(value);
+  });
+
+  router.post("/mqtt", async (request: Request, response: Response) => {
+    const body = request.body as Partial<MqttSettings>;
+    const enabled = Boolean(body.enabled);
+    const host = (body.host ?? "").toString().trim();
+    const port = Number(body.port);
+    const user = body.user;
+    const password = body.password;
+
+    if (enabled) {
+      if (!host) {
+        response.status(400).json({ detail: "Missing host" });
+        return;
+      }
+      if (!Number.isFinite(port) || port <= 0 || port > 65535) {
+        response.status(400).json({ detail: "Invalid port" });
+        return;
+      }
+    }
+
+    const settings: MqttSettings = { enabled, host, port, user, password };
+    setAppSetting(MQTT_SETTINGS_KEY, JSON.stringify(settings));
+
+    // Trigger reload
+    await mqttService.reloadConfig();
+
+    response.status(204).end();
+  });
 
   // HRU Settings
   router.get("/hru", (_request: Request, response: Response) => {

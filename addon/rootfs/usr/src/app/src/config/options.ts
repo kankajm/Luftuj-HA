@@ -12,6 +12,10 @@ const optionsFileSchema = z
     ha_base_url: z.string().optional(),
     ha_token: z.string().optional(),
     web_port: z.number().int().optional(),
+    mqtt_host: z.string().optional(),
+    mqtt_port: z.number().int().optional(),
+    mqtt_user: z.string().optional(),
+    mqtt_password: z.string().optional(),
   })
   .partial();
 
@@ -28,6 +32,10 @@ const envSchema = z.object({
   SUPERVISOR_TOKEN: z.string().optional(),
   STATIC_ROOT: z.string().optional(),
   CORS_ORIGINS: z.string().optional(),
+  MQTT_HOST: z.string().optional(),
+  MQTT_PORT: z.string().optional(),
+  MQTT_USER: z.string().optional(),
+  MQTT_PASSWORD: z.string().optional(),
 });
 
 export interface AppConfig {
@@ -38,6 +46,12 @@ export interface AppConfig {
   staticRoot: string;
   corsOrigins: string[];
   offlineMode: boolean;
+  mqtt: {
+    host: string | null;
+    port: number;
+    user: string | null;
+    password: string | null;
+  };
 }
 
 let cachedConfig: AppConfig | null = null;
@@ -96,6 +110,11 @@ export function loadConfig(): AppConfig {
   const staticRoot = env.STATIC_ROOT ?? DEFAULT_STATIC_ROOT;
   const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS);
 
+  const mqttHost = options?.mqtt_host ?? env.MQTT_HOST ?? null;
+  const mqttPort = options?.mqtt_port ?? Number.parseInt(env.MQTT_PORT ?? "1883", 10);
+  const mqttUser = options?.mqtt_user ?? env.MQTT_USER ?? null;
+  const mqttPassword = options?.mqtt_password ?? env.MQTT_PASSWORD ?? null;
+
   cachedConfig = {
     logLevel,
     baseUrl,
@@ -104,6 +123,12 @@ export function loadConfig(): AppConfig {
     staticRoot,
     corsOrigins,
     offlineMode: token === null,
+    mqtt: {
+      host: mqttHost,
+      port: mqttPort,
+      user: mqttUser,
+      password: mqttPassword,
+    },
   };
 
   return cachedConfig;
