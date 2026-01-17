@@ -65,6 +65,16 @@
       "title": "Časová osa",
       "description": "Naplánujte, kdy by se měly HRU a Luftator akce dít během týdne",
       "addEvent": "Přidat událost",
+      "addMode": "Přidat režim",
+      "modesTitle": "Režimy",
+      "modeName": "Název režimu",
+      "modePlaceholder": "např. Komfort",
+      "modePower": "Výkon (%)",
+      "modeTemperature": "Teplota (°C)",
+      "modeColor": "Barva (volitelné)",
+      "modeDialogTitle": "Vytvořit režim",
+      "modeCreateAction": "Vytvořit",
+      "noModes": "Zatím žádné režimy.",
       "edit": "Upravit",
       "delete": "Smazat",
       "enabled": "Povoleno",
@@ -98,17 +108,23 @@
       "notifications": {
         "loadFailedTitle": "Chyba načítání událostí",
         "loadFailedMessage": "Nepodařilo se načíst události časové osy",
+        "loadFailedModes": "Nepodařilo se načíst režimy",
         "saveSuccessTitle": "Událost uložena",
         "saveSuccessMessage": "Událost časové osy úspěšně uložena",
         "saveFailedTitle": "Chyba ukládání události",
         "saveFailedMessage": "{{message}}",
-        "deleteSuccessTitle": "Událost smazána",
-        "deleteSuccessMessage": "Událost časové osy úspěšně smazána",
+        "deleteSuccessTitle": "Režim smazán",
+        "deleteSuccessMessage": "Režim úspěšně smazán",
         "deleteFailedTitle": "Chyba mazání události",
         "deleteFailedMessage": "{{message}}",
         "validationFailedTitle": "Validace selhala",
         "invalidTimeFormat": "Čas musí být ve formátu HH:MM (24hodinový)",
         "startTimeBeforeEnd": "Čas začátku musí být před časem konce",
+        "modeNameRequired": "Název režimu je povinný",
+        "modeCreated": "Režim vytvořen",
+        "modeUpdated": "Režim aktualizován",
+        "invalidPower": "Výkon musí být mezi 0 a 90",
+        "invalidTemperature": "Teplota musí být mezi -50 a 100",
         "toggleFailedTitle": "Chyba přepnutí události",
         "toggleFailedMessage": "Nepodařilo se povolit/zakázat událost",
         "unknown": "Neznámá chyba"
@@ -158,8 +174,35 @@
         "importSuccessTitle": "Import dokončen",
         "importSuccessMessage": "Databáze byla úspěšně importována. Obnovte stránku pro načtení nových dat.",
         "importFailedTitle": "Import selhal",
-        "importFailedMessage": "{{message}}"
+        "importFailedMessage": "{{message}}",
+        "unknown": "Došlo k neočekávané chybě."
       }
+    }
+  },
+  "schedule": {
+    "title": "Týdenní plán",
+    "description": "Nastavte, kdy má HRU měnit režimy během týdne.",
+    "add": "Přidat záznam",
+    "empty": "Žádné záznamy pro tento den",
+    "copyHint": "Zkopírujte plán dne a vložte jej do jiného dne.",
+    "copying": "Kopíruji {{day}}… klikněte na jiný den pro vložení.",
+    "copyDay": "Kopírovat tento den",
+    "pasteDay": "Vložit zkopírovaný den sem",
+    "cancelCopy": "Zrušit kopírování",
+    "modeLabel": "Režim",
+    "modeSelect": "Vyberte režim",
+    "modalTitle": "Záznam plánu",
+    "notifications": {
+      "loadFailedTitle": "Nepodařilo se načíst plán",
+      "loadFailedModes": "Nepodařilo se načíst režimy HRU. Nejprve nakonfigurujte jednotku HRU.",
+      "loadFailedEvents": "Nepodařilo se načíst záznamy plánu.",
+      "validationFailedTitle": "Validace selhala",
+      "saveFailedTitle": "Nepodařilo se uložit záznam",
+      "saveFailedMessage": "Tento záznam se nepodařilo uložit.",
+      "saveSuccessTitle": "Záznam uložen",
+      "saveSuccessMessage": "Záznam plánu úspěšně uložen.",
+      "deleteFailedTitle": "Nepodařilo se smazat záznam",
+      "deleteFailedMessage": "Tento záznam se nepodařilo smazat."
     }
   },
   "dashboard": {
@@ -180,7 +223,12 @@
       "notConfigured": "Není nakonfigurováno",
       "reachable": "Dostupný",
       "unreachable": "Nedostupný"
-    }
+    },
+    "hruStatusTitle": "Živé hodnoty HRU",
+    "hruStatusDescription": "Čte registry HRU každých 10 sekund",
+    "hruStatusOk": "OK",
+    "hruStatusError": "Chyba",
+    "hruMode": "Režim"
   },
   "valves": {
     "title": "Zóny Luftatoru",

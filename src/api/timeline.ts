@@ -1,0 +1,98 @@
+import { resolveApiUrl } from "../utils/api";
+import type { Mode, TimelineEvent, ApiTimelineEvent } from "../types/timeline";
+
+export async function fetchTimelineModes(): Promise<Mode[]> {
+  const res = await fetch(resolveApiUrl("/api/timeline/modes"));
+  if (!res.ok) throw new Error("Failed to load modes");
+  const data = (await res.json()) as { modes?: Mode[] };
+  return data.modes ?? [];
+}
+
+export async function createTimelineMode(mode: Omit<Mode, "id">): Promise<Mode> {
+  const res = await fetch(resolveApiUrl("/api/timeline/modes"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(mode),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to create mode");
+  }
+  return res.json();
+}
+
+export async function updateTimelineMode(mode: Mode): Promise<Mode> {
+  const res = await fetch(resolveApiUrl(`/api/timeline/modes/${mode.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(mode),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to update mode");
+  }
+  return res.json();
+}
+
+export async function deleteTimelineMode(id: number): Promise<void> {
+  const res = await fetch(resolveApiUrl(`/api/timeline/modes/${id}`), {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to delete mode");
+  }
+}
+
+export async function fetchTimelineEvents(): Promise<TimelineEvent[]> {
+  const res = await fetch(resolveApiUrl("/api/timeline/events"));
+  if (!res.ok) throw new Error("Failed to load events");
+  const rawEvents = (await res.json()) as ApiTimelineEvent[];
+
+  return rawEvents
+    .map((e) => ({
+      id: e.id,
+      startTime: e.startTime ?? e.start_time ?? "08:00",
+      endTime: e.endTime ?? e.end_time ?? "08:30",
+      dayOfWeek: (e.dayOfWeek ?? e.day_of_week ?? 0) as number,
+      hruConfig: e.hruConfig ?? e.hru_config ?? null,
+      luftatorConfig: e.luftatorConfig ?? e.luftator_config ?? null,
+      enabled: e.enabled ?? true,
+    }))
+    .filter((e) => e.dayOfWeek >= 0 && e.dayOfWeek <= 6);
+}
+
+export async function saveTimelineEvent(event: TimelineEvent): Promise<TimelineEvent> {
+  const payload = {
+    id: event.id,
+    startTime: event.startTime,
+    endTime: event.endTime,
+    dayOfWeek: event.dayOfWeek,
+    hruConfig: event.hruConfig,
+    luftatorConfig: event.luftatorConfig,
+    enabled: event.enabled,
+    priority: 0,
+  };
+
+  const res = await fetch(resolveApiUrl("/api/timeline/events"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to save event");
+  }
+  return res.json();
+}
+
+export async function deleteTimelineEvent(id: number): Promise<void> {
+  const res = await fetch(resolveApiUrl(`/api/timeline/events/${id}`), {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to delete event");
+  }
+}

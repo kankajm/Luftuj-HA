@@ -1,0 +1,27 @@
+export const THEME_SETTING_KEY = "ui.theme";
+export const LANGUAGE_SETTING_KEY = "ui.language";
+export const SUPPORTED_LANGUAGES = new Set(["en", "cs"]);
+
+export const HRU_SETTINGS_KEY = "hru.settings";
+
+export type HruSettings = {
+  unit: string | null; // id from HRU_UNITS
+  host: string;
+  port: number;
+  unitId: number; // Modbus unit/slave id
+};
+
+export const ADDON_MODE_KEY = "addon.mode";
+export const ADDON_MODES = ["manual", "timeline"] as const;
+export type AddonMode = (typeof ADDON_MODES)[number];
+
+export const TIMELINE_MODES_KEY = "timeline.modes";
+
+export type TimelineMode = {
+  id: number;
+  name: string;
+  color?: string;
+  power?: number;
+  temperature?: number;
+  luftatorConfig?: Record<string, number>;
+};

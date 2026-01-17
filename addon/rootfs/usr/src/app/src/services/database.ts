@@ -1,3 +1,4 @@
+/* eslint-disable quotes */
 import { Database } from "bun:sqlite";
 import type { Statement } from "bun:sqlite";
 import { copyFileSync, existsSync, mkdirSync } from "fs";
@@ -35,8 +36,8 @@ const migrations: Migration[] = [
       `CREATE TABLE IF NOT EXISTS controllers (
         id TEXT PRIMARY KEY,
         name TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at TEXT NOT NULL DEFAULT (datetime("now")),
+        updated_at TEXT NOT NULL DEFAULT (datetime("now"))
       )`,
       `CREATE TABLE IF NOT EXISTS valve_state (
         entity_id TEXT PRIMARY KEY,
@@ -84,8 +85,8 @@ const migrations: Migration[] = [
         luftator_config TEXT, -- JSON: {entity_id: value}
         enabled BOOLEAN NOT NULL DEFAULT 1,
         priority INTEGER NOT NULL DEFAULT 0, -- higher wins conflicts
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at TEXT NOT NULL DEFAULT (datetime("now")),
+        updated_at TEXT NOT NULL DEFAULT (datetime("now"))
       )`,
       `CREATE INDEX IF NOT EXISTS idx_timeline_events_day_time ON timeline_events(day_of_week, start_time, enabled)`,
     ],
@@ -122,11 +123,17 @@ function openDatabase(): Database {
 }
 
 function applyMigrations(database: Database): void {
-  database.run("PRAGMA journal_mode = WAL;");
+  try {
+    database.run("PRAGMA journal_mode = WAL;");
+  } catch (err) {
+    // Fallback for environments that don't support WAL (e.g. WSL mounts)
+    console.warn("Failed to set WAL mode, falling back to DELETE mode", err);
+    database.run("PRAGMA journal_mode = DELETE;");
+  }
   database.run(
     `CREATE TABLE IF NOT EXISTS migrations (
       id TEXT PRIMARY KEY,
-      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      applied_at TEXT NOT NULL DEFAULT (datetime("now"))
     );`,
   );
 
@@ -172,8 +179,8 @@ function prepareStatements(database: Database): StatementMap {
   return {
     upsertController: database.prepare(
       `INSERT INTO controllers (id, name, created_at, updated_at)
-       VALUES (?, ?, datetime('now'), datetime('now'))
-       ON CONFLICT(id) DO UPDATE SET name = excluded.name, updated_at = datetime('now')`,
+       VALUES (?, ?, datetime("now"), datetime("now"))
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, updated_at = datetime("now")`,
     ),
     upsertValveState: database.prepare(
       `INSERT INTO valve_state (entity_id, controller_id, name, value, state, last_updated, attributes)
@@ -210,15 +217,13 @@ function prepareStatements(database: Database): StatementMap {
          luftator_config = excluded.luftator_config,
          enabled = excluded.enabled,
          priority = excluded.priority,
-         updated_at = datetime('now')`,
+         updated_at = datetime("now")`,
     ),
-    deleteTimelineEvent: database.prepare(
-      `DELETE FROM timeline_events WHERE id = ?`,
-    ),
+    deleteTimelineEvent: database.prepare(`DELETE FROM timeline_events WHERE id = ?`),
   };
 }
 
-function setupDatabase(): void {
+export function setupDatabase(): void {
   if (statements) {
     finalizeStatements();
   }
@@ -232,7 +237,8 @@ function setupDatabase(): void {
   statements = prepareStatements(db);
 }
 
-setupDatabase();
+// Remove automatic initialization to allow lazy loading/mocking
+// setupDatabase();
 
 export interface ValveSnapshotRecord {
   entityId: string;
@@ -263,8 +269,11 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
   }
 
   if (!db || !statements) {
-    throw new Error("Database not initialised");
+    // If not initialized, try to initialize (lazy load for prod)
+    // Or throw error if you prefer strict explicit init
+    setupDatabase();
   }
+  if (!db || !statements) throw new Error("Database init failed");
 
   const prepared = statements;
 
@@ -304,8 +313,9 @@ export function getDatabasePath(): string {
 
 export function getAppSetting(key: string): string | null {
   if (!db || !statements) {
-    throw new Error("Database not initialised");
+    setupDatabase();
   }
+  if (!statements) throw new Error("Database not initialised");
 
   const row = statements.getSetting.get(key) as { value: string } | undefined;
   return row?.value ?? null;
@@ -313,8 +323,9 @@ export function getAppSetting(key: string): string | null {
 
 export function setAppSetting(key: string, value: string): void {
   if (!db || !statements) {
-    throw new Error("Database not initialised");
+    setupDatabase();
   }
+  if (!statements) throw new Error("Database not initialised");
 
   statements.upsertSetting.run(key, value);
 }
@@ -347,7 +358,9 @@ export interface TimelineEventRecord {
   updated_at: string;
 }
 
-function normaliseTimelineEvent(event: TimelineEvent): Omit<TimelineEventRecord, 'id' | 'created_at' | 'updated_at'> {
+function normaliseTimelineEvent(
+  event: TimelineEvent,
+): Omit<TimelineEventRecord, "id" | "created_at" | "updated_at"> {
   return {
     start_time: event.startTime,
     end_time: event.endTime,
@@ -374,8 +387,9 @@ function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineEvent {
 
 export function getTimelineEvents(): TimelineEvent[] {
   if (!db || !statements) {
-    throw new Error("Database not initialised");
+    setupDatabase();
   }
+  if (!statements) throw new Error("Database not initialised");
 
   const records = statements.getTimelineEvents.all() as TimelineEventRecord[];
   return records.map(denormaliseTimelineEvent);
@@ -383,11 +397,12 @@ export function getTimelineEvents(): TimelineEvent[] {
 
 export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
   if (!db || !statements) {
-    throw new Error("Database not initialised");
+    setupDatabase();
   }
+  if (!statements) throw new Error("Database not initialised");
 
   const normalised = normaliseTimelineEvent(event);
-  
+
   // Use single upsert statement for both insert and update
   const result = statements.upsertTimelineEvent.run(
     event.id ?? null, // id can be null for new records
@@ -399,7 +414,7 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
     normalised.enabled,
     normalised.priority,
   ) as { lastInsertRowid: number | bigint; changes: number };
-  
+
   // Return the event with proper ID
   const persistedId = event.id ?? Number(result.lastInsertRowid);
   return {
@@ -410,8 +425,9 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
 
 export function deleteTimelineEvent(id: number): void {
   if (!db || !statements) {
-    throw new Error("Database not initialised");
+    setupDatabase();
   }
+  if (!statements) throw new Error("Database not initialised");
 
   statements.deleteTimelineEvent.run(id);
 }

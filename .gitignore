@@ -29,3 +29,4 @@ addon/rootfs/usr/data/luftator.db*
 *.sw?
 *.iml
 /exampleui/
+/qodana.yaml

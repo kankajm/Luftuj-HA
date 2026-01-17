@@ -1,24 +1,34 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Logger } from "vite";
 import react from "@vitejs/plugin-react";
 
-const filteredLogger = {
-  info(msg: any, _options?: any) {
+type ProxyServer = {
+  removeAllListeners(event: string): void;
+  on(event: "error", listener: (err: Error & { code?: string }) => void): void;
+};
+
+const filteredLogger: Logger = {
+  hasErrorLogged() {
+    return false;
+  },
+  hasWarned: false,
+  info(msg: string) {
     console.info(msg);
   },
-  warn(msg: any, _options?: any) {
+  warn(msg: string) {
     console.warn(msg);
   },
-  error(msg: any, _options?: any) {
+  warnOnce(msg: string) {
+    console.warn(msg);
+  },
+  error(msg: string) {
     // Filter out noisy WS proxy errors from Vite dev server
-    if (typeof msg === "string") {
-      if (msg.includes("ws proxy error") || msg.includes("ws proxy socket error")) {
-        return;
-      }
-    } else if (msg instanceof Error) {
-      const message = msg.message || "";
-      if (message.includes("ECONNABORTED") || message.includes("ECONNRESET")) {
-        return;
-      }
+    if (
+      msg.includes("ws proxy error") ||
+      msg.includes("ws proxy socket error") ||
+      msg.includes("ECONNABORTED") ||
+      msg.includes("ECONNRESET")
+    ) {
+      return;
     }
 
     console.error(msg);
@@ -26,7 +36,7 @@ const filteredLogger = {
   clearScreen() {
     // Do not clear user's terminal
   },
-} as any;
+};
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -43,12 +53,12 @@ export default defineConfig({
         target: "ws://localhost:8000",
         changeOrigin: true,
         ws: true,
-        configure: (proxy: any) => {
+        configure: (proxy: ProxyServer) => {
           // Remove Vite's default error listeners so we can control logging ourselves
           proxy.removeAllListeners("error");
 
-          proxy.on("error", (err: any) => {
-            const code = err?.code as string | undefined;
+          proxy.on("error", (err: Error & { code?: string }) => {
+            const code = err?.code;
 
             // Ignore expected aborted/closed socket errors during development
             if (code === "ECONNABORTED" || code === "ECONNRESET" || code === "EPIPE") {
@@ -56,7 +66,6 @@ export default defineConfig({
             }
 
             // Log other errors so they are still visible
-            // eslint-disable-next-line no-console
             console.error("[vite ws proxy error]", err);
           });
         },
