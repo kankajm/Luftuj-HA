@@ -1,4 +1,9 @@
-import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  createHashHistory,
+} from "@tanstack/react-router";
 
 import { AppLayout } from "./layouts/AppLayout";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -34,9 +39,16 @@ const timelineRoute = createRoute({
   component: TimelinePage,
 });
 
-const routeTree = rootRoute.addChildren([dashboardRoute, valvesRoute, settingsRoute, timelineRoute]);
+const routeTree = rootRoute.addChildren([
+  dashboardRoute,
+  valvesRoute,
+  settingsRoute,
+  timelineRoute,
+]);
 
-const router = createRouter({ routeTree });
+const hashHistory = createHashHistory();
+
+const router = createRouter({ routeTree, history: hashHistory });
 
 declare module "@tanstack/react-router" {
   interface Register {

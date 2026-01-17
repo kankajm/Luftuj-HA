@@ -161,9 +161,29 @@ const port = config.webPort;
 const host = "0.0.0.0";
 
 async function start() {
-  setupDatabase();
-  await valveManager.start();
-  timelineRunner.start();
+  try {
+    logger.info("Initializing database...");
+    setupDatabase();
+  } catch (err) {
+    logger.fatal({ err }, "Failed to initialize database");
+    throw err;
+  }
+
+  try {
+    logger.info("Starting Valve Manager...");
+    await valveManager.start();
+  } catch (err) {
+    logger.fatal({ err }, "Failed to start Valve Manager");
+    throw err;
+  }
+
+  try {
+    logger.info("Starting Timeline Runner...");
+    timelineRunner.start();
+  } catch (err) {
+    logger.fatal({ err }, "Failed to start Timeline Runner");
+    throw err;
+  }
 
   httpServer.listen(port, host, () => {
     logger.info({ port }, "Luftujha backend listening");

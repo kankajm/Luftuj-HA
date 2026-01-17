@@ -36,8 +36,8 @@ const migrations: Migration[] = [
       `CREATE TABLE IF NOT EXISTS controllers (
         id TEXT PRIMARY KEY,
         name TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime("now")),
-        updated_at TEXT NOT NULL DEFAULT (datetime("now"))
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`,
       `CREATE TABLE IF NOT EXISTS valve_state (
         entity_id TEXT PRIMARY KEY,
@@ -85,8 +85,8 @@ const migrations: Migration[] = [
         luftator_config TEXT, -- JSON: {entity_id: value}
         enabled BOOLEAN NOT NULL DEFAULT 1,
         priority INTEGER NOT NULL DEFAULT 0, -- higher wins conflicts
-        created_at TEXT NOT NULL DEFAULT (datetime("now")),
-        updated_at TEXT NOT NULL DEFAULT (datetime("now"))
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`,
       `CREATE INDEX IF NOT EXISTS idx_timeline_events_day_time ON timeline_events(day_of_week, start_time, enabled)`,
     ],
@@ -119,7 +119,13 @@ type ValveStateRecord = {
 };
 
 function openDatabase(): Database {
-  return new Database(DATABASE_PATH, { create: true });
+  console.log(`Opening database at ${DATABASE_PATH}`);
+  try {
+    return new Database(DATABASE_PATH, { create: true });
+  } catch (error) {
+    console.error("Failed to open database:", error);
+    throw error;
+  }
 }
 
 function applyMigrations(database: Database): void {
@@ -133,7 +139,7 @@ function applyMigrations(database: Database): void {
   database.run(
     `CREATE TABLE IF NOT EXISTS migrations (
       id TEXT PRIMARY KEY,
-      applied_at TEXT NOT NULL DEFAULT (datetime("now"))
+      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );`,
   );
 
@@ -179,8 +185,8 @@ function prepareStatements(database: Database): StatementMap {
   return {
     upsertController: database.prepare(
       `INSERT INTO controllers (id, name, created_at, updated_at)
-       VALUES (?, ?, datetime("now"), datetime("now"))
-       ON CONFLICT(id) DO UPDATE SET name = excluded.name, updated_at = datetime("now")`,
+       VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, updated_at = CURRENT_TIMESTAMP`,
     ),
     upsertValveState: database.prepare(
       `INSERT INTO valve_state (entity_id, controller_id, name, value, state, last_updated, attributes)

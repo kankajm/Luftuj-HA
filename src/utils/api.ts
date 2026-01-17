@@ -1,4 +1,24 @@
-const ingressPrefixRegex = /\/api\/hassio_ingress\/[A-Za-z0-9_-]+\//;
+// With HashRouter, the pathname is always the base path of the application
+// because routing information is stored in the hash fragment.
+function computeBaseUrl(): URL {
+  const url = new URL(window.location.origin);
+  let path = window.location.pathname;
+
+  // If path refers to a file (e.g. /app/index.html), strip the filename
+  if (!path.endsWith("/") && path.split("/").pop()?.includes(".")) {
+    path = path.substring(0, path.lastIndexOf("/") + 1);
+  }
+
+  // Ensure path ends with /
+  if (!path.endsWith("/")) {
+    path += "/";
+  }
+
+  url.pathname = path;
+  return url;
+}
+
+const apiBase = computeBaseUrl();
 
 function normalisePath(path: string): string {
   if (!path) {
@@ -6,18 +26,6 @@ function normalisePath(path: string): string {
   }
   return path.startsWith("/") ? path.slice(1) : path;
 }
-
-function computeBaseUrl(): URL {
-  const ingressMatch = window.location.pathname.match(ingressPrefixRegex);
-  const basePath = ingressMatch ? ingressMatch[0] : "/";
-  const base = new URL(basePath, window.location.origin);
-  if (!base.pathname.endsWith("/")) {
-    base.pathname += "/";
-  }
-  return base;
-}
-
-const apiBase = computeBaseUrl();
 
 export function resolveApiUrl(path: string): string {
   const target = new URL(normalisePath(path), apiBase);
