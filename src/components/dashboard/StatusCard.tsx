@@ -1,4 +1,12 @@
-import { Badge, Card, Group, Text, Title } from "@mantine/core";
+import { Badge, Card, Group, Text, Title, ThemeIcon } from "@mantine/core";
+import {
+  IconCheck,
+  IconAlertTriangle,
+  IconX,
+  IconRefresh,
+  IconServer,
+  IconNetwork,
+} from "@tabler/icons-react";
 import type { ReactNode } from "react";
 
 interface StatusCardProps {
@@ -19,18 +27,47 @@ export function StatusCard({ title, description, status, statusLabel, children }
           ? "red"
           : "gray";
 
+  const icon =
+    status === "success" ? (
+      <IconCheck size={20} />
+    ) : status === "warning" ? (
+      <IconAlertTriangle size={20} />
+    ) : status === "error" ? (
+      <IconX size={20} />
+    ) : (
+      <IconRefresh size={20} className="mantine-rotate-animation" />
+    );
+
+  const connectivityIcon = title.toLowerCase().includes("modbus") ? (
+    <IconNetwork size={18} />
+  ) : (
+    <IconServer size={18} />
+  );
+
   return (
-    <Card shadow="sm" padding="lg" withBorder>
-      <Group justify="space-between" align="center">
-        <Title order={4}>{title}</Title>
-        <Badge color={color} variant="light" size="lg">
+    <Card shadow="sm" padding="lg" withBorder radius="md">
+      <Group justify="space-between" align="flex-start">
+        <Group gap="xs">
+          <ThemeIcon color={color} variant="light" size={32} radius="md">
+            {connectivityIcon}
+          </ThemeIcon>
+          <div>
+            <Title order={4}>{title}</Title>
+            <Text size="xs" c="dimmed">
+              {description}
+            </Text>
+          </div>
+        </Group>
+        <Badge color={color} variant="light" size="lg" radius="sm" leftSection={icon}>
           {statusLabel}
         </Badge>
       </Group>
-      {children}
-      <Text size="sm" c="dimmed" mt={children ? "xs" : 0}>
-        {description}
-      </Text>
+
+      {children && (
+        <Card shadow="none" padding="md" withBorder radius="md" variant="light" mt="md">
+          {children}
+        </Card>
+      )}
     </Card>
   );
 }

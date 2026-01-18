@@ -6,6 +6,7 @@ import { withTempModbusClient } from "../services/hruService";
 import { getUnitById } from "../hru/definitions";
 import { getAppSetting } from "../services/database";
 import { HRU_SETTINGS_KEY, type HruSettings } from "../types";
+import { applyWriteDefinition, resolveModeValue } from "../utils/hruWrite";
 
 export function createHruRouter(logger: Logger) {
   const router = Router();
@@ -35,14 +36,18 @@ export function createHruRouter(logger: Logger) {
         id: u.id,
         name: u.name,
         description: u.description,
+        capabilities: u.capabilities ?? null,
         registers: {
-          requestedPower: u.registers.requestedPower,
-          requestedTemperature: u.registers.requestedTemperature,
-          mode: {
-            address: u.registers.mode.address,
-            kind: u.registers.mode.kind,
-            values: u.registers.mode.values,
+          read: {
+            power: u.registers.read.power,
+            temperature: u.registers.read.temperature,
+            mode: {
+              address: u.registers.read.mode.address,
+              kind: u.registers.read.mode.kind,
+              values: u.registers.read.mode.values,
+            },
           },
+          write: u.registers.write ?? null,
         },
       })),
     );
@@ -63,8 +68,8 @@ export function createHruRouter(logger: Logger) {
       return;
     }
 
-    const modes = def.registers.mode.values.map((name, index) => ({
-      id: index,
+    const modes = Object.entries(def.registers.read.mode.values).map(([id, name]) => ({
+      id: Number(id),
       name,
     }));
 
@@ -81,20 +86,31 @@ export function createHruRouter(logger: Logger) {
         { host: settings.host, port: settings.port, unitId: settings.unitId },
         logger,
         async (mb) => {
-          const powerRaw = (await mb.readHolding(def.registers.requestedPower.address, 1))[0] ?? 0;
-          const tempRaw =
-            (await mb.readHolding(def.registers.requestedTemperature.address, 1))[0] ?? 0;
-          const modeRaw = (await mb.readHolding(def.registers.mode.address, 1))[0] ?? 0;
+          const powerRaw = (await mb.readHolding(def.registers.read.power.address, 1))[0] ?? 0;
+          const tempRaw = (await mb.readHolding(def.registers.read.temperature.address, 1))[0] ?? 0;
+          const modeRaw = (await mb.readHolding(def.registers.read.mode.address, 1))[0] ?? 0;
 
           const power = powerRaw;
-          const temp = def.registers.requestedTemperature.scale
-            ? tempRaw * def.registers.requestedTemperature.scale
+          const temp = def.registers.read.temperature.scale
+            ? tempRaw * def.registers.read.temperature.scale
             : tempRaw;
-          const mode = def.registers.mode.values[modeRaw] ?? String(modeRaw);
+          const mode = def.registers.read.mode.values[modeRaw] ?? String(modeRaw);
 
           return {
             raw: { power: powerRaw, temperature: tempRaw, mode: modeRaw },
             value: { power, temperature: temp, mode },
+            registers: {
+              power: {
+                unit: def.registers.read.power.unit,
+                scale: def.registers.read.power.scale,
+                precision: def.registers.read.power.precision,
+              },
+              temperature: {
+                unit: def.registers.read.temperature.unit,
+                scale: def.registers.read.temperature.scale,
+                precision: def.registers.read.temperature.precision,
+              },
+            },
           };
         },
       );
@@ -122,22 +138,29 @@ export function createHruRouter(logger: Logger) {
         logger,
         async (mb) => {
           if (typeof body.power === "number") {
-            await mb.writeHolding(def.registers.requestedPower.address, Math.round(body.power));
+            const writeDef = def.registers.write?.power;
+            if (!writeDef) {
+              response.status(400).json({ detail: "Power write not supported" });
+              return;
+            }
+            await applyWriteDefinition(mb, writeDef, body.power);
           }
           if (typeof body.temperature === "number") {
-            const scale = def.registers.requestedTemperature.scale ?? 1;
-            const rawVal = Math.round(body.temperature / scale);
-            await mb.writeHolding(def.registers.requestedTemperature.address, rawVal);
+            const writeDef = def.registers.write?.temperature;
+            if (!writeDef) {
+              response.status(400).json({ detail: "Temperature write not supported" });
+              return;
+            }
+            await applyWriteDefinition(mb, writeDef, body.temperature);
           }
           if (body.mode !== undefined) {
-            let rawMode: number;
-            if (typeof body.mode === "number") rawMode = body.mode;
-            else
-              rawMode = Math.max(
-                0,
-                def.registers.mode.values.findIndex((v) => v === body.mode),
-              );
-            await mb.writeHolding(def.registers.mode.address, rawMode);
+            const writeDef = def.registers.write?.mode;
+            if (!writeDef) {
+              response.status(400).json({ detail: "Mode write not supported" });
+              return;
+            }
+            const rawMode = resolveModeValue(def.registers.read.mode.values, body.mode);
+            await applyWriteDefinition(mb, writeDef, rawMode);
           }
         },
       );

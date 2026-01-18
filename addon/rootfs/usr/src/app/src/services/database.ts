@@ -4,6 +4,7 @@ import type { Statement } from "bun:sqlite";
 import { copyFileSync, existsSync, mkdirSync } from "fs";
 import { promises as fsp } from "fs";
 import path from "path";
+import type { Logger } from "pino";
 
 const DEFAULT_DATA_DIR = "/data";
 const FALLBACK_DATA_DIR = path.resolve(process.cwd(), "../../data");
@@ -118,22 +119,37 @@ type ValveStateRecord = {
   attributes: string;
 };
 
-function openDatabase(): Database {
-  console.log(`Opening database at ${DATABASE_PATH}`);
+function openDatabase(logger?: Logger): Database {
+  const logMsg = `Opening database at ${DATABASE_PATH}`;
+  if (logger) {
+    logger.info(logMsg);
+  } else {
+    console.log(logMsg);
+  }
   try {
     return new Database(DATABASE_PATH, { create: true });
   } catch (error) {
-    console.error("Failed to open database:", error);
+    const errMsg = "Failed to open database";
+    if (logger) {
+      logger.error({ error }, errMsg);
+    } else {
+      console.error(errMsg, error);
+    }
     throw error;
   }
 }
 
-function applyMigrations(database: Database): void {
+function applyMigrations(database: Database, logger?: Logger): void {
   try {
     database.run("PRAGMA journal_mode = WAL;");
   } catch (err) {
     // Fallback for environments that don't support WAL (e.g. WSL mounts)
-    console.warn("Failed to set WAL mode, falling back to DELETE mode", err);
+    const warnMsg = "Failed to set WAL mode, falling back to DELETE mode";
+    if (logger) {
+      logger.warn({ err }, warnMsg);
+    } else {
+      console.warn(warnMsg, err);
+    }
     database.run("PRAGMA journal_mode = DELETE;");
   }
   database.run(
@@ -229,7 +245,7 @@ function prepareStatements(database: Database): StatementMap {
   };
 }
 
-export function setupDatabase(): void {
+export function setupDatabase(logger?: Logger): void {
   if (statements) {
     finalizeStatements();
   }
@@ -238,8 +254,8 @@ export function setupDatabase(): void {
     db = null;
   }
 
-  db = openDatabase();
-  applyMigrations(db);
+  db = openDatabase(logger);
+  applyMigrations(db, logger);
   statements = prepareStatements(db);
 }
 

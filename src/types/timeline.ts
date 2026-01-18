@@ -1,9 +1,16 @@
+export interface HruCapabilities {
+  supportsPowerWrite?: boolean;
+  supportsTemperatureWrite?: boolean;
+  supportsModeWrite?: boolean;
+}
+
 export interface TimelineEvent {
   id?: number;
   startTime: string;
   endTime: string;
   dayOfWeek: number; // 0-6
   hruConfig?: { mode?: string; power?: number; temperature?: number } | null;
+  hruCapabilities?: HruCapabilities;
   luftatorConfig?: Record<string, number> | null;
   enabled: boolean;
 }
@@ -18,6 +25,8 @@ export interface ApiTimelineEvent {
   day_of_week?: number | null;
   hruConfig?: TimelineEvent["hruConfig"];
   hru_config?: TimelineEvent["hruConfig"];
+  hruCapabilities?: TimelineEvent["hruCapabilities"];
+  hru_capabilities?: TimelineEvent["hruCapabilities"];
   luftatorConfig?: TimelineEvent["luftatorConfig"];
   luftator_config?: TimelineEvent["luftatorConfig"];
   enabled?: boolean;

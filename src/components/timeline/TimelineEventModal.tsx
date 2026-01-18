@@ -11,6 +11,9 @@ interface TimelineEventModalProps {
   onSave: () => void;
   onChange: (event: TimelineEvent) => void;
   t: TFunction;
+  hruCapabilities?: {
+    supportsModeWrite?: boolean;
+  };
 }
 
 const TIME_REGEX = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
@@ -24,6 +27,7 @@ export function TimelineEventModal({
   onSave,
   onChange,
   t,
+  hruCapabilities,
 }: TimelineEventModalProps) {
   return (
     <Modal opened={opened} onClose={onClose} title={t("settings.timeline.modal.title")} size="md">
@@ -48,19 +52,21 @@ export function TimelineEventModal({
             />
           </Group>
 
-          <Select
-            label={t("schedule.modeSelect", { defaultValue: "Select mode" })}
-            data={modeOptions}
-            value={event.hruConfig?.mode?.toString() ?? ""}
-            onChange={(value) =>
-              onChange({
-                ...event,
-                hruConfig: { ...(event.hruConfig ?? {}), mode: value ?? undefined },
-              })
-            }
-            searchable
-            required
-          />
+          {hruCapabilities?.supportsModeWrite !== false && (
+            <Select
+              label={t("schedule.modeSelect", { defaultValue: "Select mode" })}
+              data={modeOptions}
+              value={event.hruConfig?.mode?.toString() ?? ""}
+              onChange={(value) =>
+                onChange({
+                  ...event,
+                  hruConfig: { ...(event.hruConfig ?? {}), mode: value ?? undefined },
+                })
+              }
+              searchable
+              required
+            />
+          )}
 
           <Divider />
 

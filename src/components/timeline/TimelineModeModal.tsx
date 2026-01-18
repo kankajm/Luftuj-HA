@@ -12,6 +12,12 @@ interface TimelineModeModalProps {
   onClose: () => void;
   onSave: (mode: Partial<Mode>) => void;
   t: TFunction;
+  hruCapabilities?: {
+    supportsPowerWrite?: boolean;
+    supportsTemperatureWrite?: boolean;
+  };
+  powerUnit?: string;
+  temperatureUnit?: string;
 }
 
 export function TimelineModeModal({
@@ -22,6 +28,9 @@ export function TimelineModeModal({
   onClose,
   onSave,
   t,
+  hruCapabilities,
+  powerUnit = "%",
+  temperatureUnit = "°C",
 }: TimelineModeModalProps) {
   const [name, setName] = useState("");
   const [power, setPower] = useState<number | undefined>(undefined);
@@ -82,24 +91,28 @@ export function TimelineModeModal({
           required
         />
         <Group grow>
-          <NumberInput
-            label={t("settings.timeline.modePower", { defaultValue: "Power (%)" })}
-            placeholder="50"
-            value={power}
-            onChange={(value) => setPower(typeof value === "number" ? value : undefined)}
-            min={0}
-            max={100}
-            step={1}
-          />
-          <NumberInput
-            label={t("settings.timeline.modeTemperature", { defaultValue: "Temperature (°C)" })}
-            placeholder="21"
-            value={temperature}
-            onChange={(value) => setTemperature(typeof value === "number" ? value : undefined)}
-            min={-50}
-            max={100}
-            step={0.5}
-          />
+          {hruCapabilities?.supportsPowerWrite !== false && (
+            <NumberInput
+              label={`${t("settings.timeline.modePower", { defaultValue: "Power" })} (${powerUnit})`}
+              placeholder="50"
+              value={power}
+              onChange={(value) => setPower(typeof value === "number" ? value : undefined)}
+              min={0}
+              max={100}
+              step={1}
+            />
+          )}
+          {hruCapabilities?.supportsTemperatureWrite !== false && (
+            <NumberInput
+              label={`${t("settings.timeline.modeTemperature", { defaultValue: "Temperature" })} (${temperatureUnit})`}
+              placeholder="21"
+              value={temperature}
+              onChange={(value) => setTemperature(typeof value === "number" ? value : undefined)}
+              min={-50}
+              max={100}
+              step={0.5}
+            />
+          )}
         </Group>
 
         {valves.length > 0 && (

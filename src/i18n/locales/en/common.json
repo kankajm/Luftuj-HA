@@ -37,6 +37,9 @@
   "settings": {
     "title": "Settings",
     "description": "Backup or restore Luftator data managed by this Home Assistant instance.",
+    "appearance": {
+      "title": "Appearance"
+    },
     "language": {
       "title": "Language",
       "description": "Choose the language used in the interface.",
@@ -246,7 +249,6 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "placeholder": "Overview widgets coming soon.",
     "haStatusTitle": "Home Assistant",
     "haStatusDescription": "Backend connection to Home Assistant WebSocket",
     "haStatus": {

@@ -1,6 +1,6 @@
 import type { Logger } from "pino";
 import type { MqttService } from "./mqttService";
-import { getHruDefinitionSafe, withTempModbusClient } from "./hruService";
+import { getHruDefinitionSafe, getSharedModbusClient } from "./hruService";
 
 const POLLING_INTERVAL_MS = 60_000; // 1 minute
 
@@ -44,6 +44,16 @@ export class HruMonitor {
 
     const { settings, def } = hruCtx;
 
+    // Get shared client
+    const client = getSharedModbusClient(
+      {
+        host: settings.host,
+        port: settings.port,
+        unitId: settings.unitId,
+      },
+      this.logger,
+    );
+
     // Log the configuration we are using for this cycle
     this.logger.debug(
       {
@@ -60,46 +70,51 @@ export class HruMonitor {
     }
 
     try {
-      await withTempModbusClient(
-        { host: settings.host, port: settings.port, unitId: settings.unitId },
-        this.logger,
-        async (client) => {
-          async function readRegister(reg: { address: number; kind: string }) {
-            if (reg.kind === "input") {
-              return client.readInput(reg.address, 1);
-            }
-            return client.readHolding(reg.address, 1);
-          }
+      if (!client.isConnected()) {
+        try {
+          await client.connect();
+        } catch (connErr) {
+          this.logger.warn({ err: connErr }, "HRU Monitor: Failed to connect to HRU");
+          return;
+        }
+      }
 
-          // Read Power
-          const powerVal = await readRegister(def.registers.requestedPower);
-          const power = powerVal[0] ?? 0;
+      async function readRegister(reg: { address: number; kind: string }) {
+        if (reg.kind === "input") {
+          return client.readInput(reg.address, 1);
+        }
+        return client.readHolding(reg.address, 1);
+      }
 
-          // Read Mode
-          const modeVal = await readRegister(def.registers.mode);
-          const rawMode = modeVal[0] ?? 0;
-          const modeStr = def.registers.mode.values[rawMode] ?? "Unknown";
+      // Read Power
+      const powerVal = await readRegister(def.registers.read.power);
+      const power = powerVal[0] ?? 0;
 
-          // Read Temperature
-          const tempVal = await readRegister(def.registers.requestedTemperature);
-          const rawTemp = tempVal[0] ?? 0;
-          const scale = def.registers.requestedTemperature.scale ?? 1;
-          const temperature = Number((rawTemp * scale).toFixed(1));
+      // Read Mode
+      const modeVal = await readRegister(def.registers.read.mode);
+      const rawMode = modeVal[0] ?? 0;
+      const modeStr = def.registers.read.mode.values[rawMode] ?? "Unknown";
 
-          this.logger.info(
-            { power, temperature, mode: modeStr },
-            "HRU Monitor: Read successful, publishing to MQTT",
-          );
+      // Read Temperature
+      const tempVal = await readRegister(def.registers.read.temperature);
+      const rawTemp = tempVal[0] ?? 0;
+      const scale = def.registers.read.temperature.scale ?? 1;
+      const temperature = Number((rawTemp * scale).toFixed(1));
 
-          await this.mqttService.publishState({
-            power,
-            mode: modeStr,
-            temperature,
-          });
-        },
+      this.logger.info(
+        { power, temperature, mode: modeStr },
+        "HRU Monitor: Read successful, publishing to MQTT",
       );
+
+      await this.mqttService.publishState({
+        power,
+        mode: modeStr,
+        temperature,
+      });
     } catch (err) {
       this.logger.warn({ err, settings }, "HRU Monitor: Failed to read from HRU");
+      // We don't disconnect the shared client here, as other services might use it.
+      // ModbusTcpClient handles its own health checks/reconnects if needed.
     }
   }
 }

@@ -2,6 +2,7 @@ import type { Logger } from "pino";
 import type { ValveController } from "../core/valveManager";
 import { getTimelineEvents } from "./database";
 import { getHruDefinitionSafe, withTempModbusClient } from "./hruService";
+import { applyWriteDefinition, resolveModeValue } from "../utils/hruWrite";
 
 export class TimelineRunner {
   private timelineTimer: NodeJS.Timeout | null = null;
@@ -131,24 +132,28 @@ export class TimelineRunner {
             this.logger,
             async (mb) => {
               if (typeof power === "number" && Number.isFinite(power)) {
-                await mb.writeHolding(def.registers.requestedPower.address, Math.round(power));
+                const writeDef = def.registers.write?.power;
+                if (!writeDef) {
+                  this.logger.warn("Timeline: power write not supported by HRU definition");
+                } else {
+                  await applyWriteDefinition(mb, writeDef, power);
+                }
               }
               if (typeof temperature === "number" && Number.isFinite(temperature)) {
-                const scale = def.registers.requestedTemperature.scale ?? 1;
-                const rawVal = Math.round(temperature / scale);
-                await mb.writeHolding(def.registers.requestedTemperature.address, rawVal);
+                const writeDef = def.registers.write?.temperature;
+                if (!writeDef) {
+                  this.logger.warn("Timeline: temperature write not supported by HRU definition");
+                } else {
+                  await applyWriteDefinition(mb, writeDef, temperature);
+                }
               }
               if (mode !== undefined && mode !== null) {
-                let rawMode: number | null;
-                const parsed = Number.parseInt(String(mode), 10);
-                if (Number.isFinite(parsed)) {
-                  rawMode = parsed;
+                const writeDef = def.registers.write?.mode;
+                if (!writeDef) {
+                  this.logger.warn("Timeline: mode write not supported by HRU definition");
                 } else {
-                  const idx = def.registers.mode.values.findIndex((v) => v === mode);
-                  rawMode = idx >= 0 ? idx : 0;
-                }
-                if (rawMode !== null) {
-                  await mb.writeHolding(def.registers.mode.address, rawMode);
+                  const rawMode = resolveModeValue(def.registers.read.mode.values, mode);
+                  await applyWriteDefinition(mb, writeDef, rawMode);
                 }
               }
             },
@@ -158,7 +163,6 @@ export class TimelineRunner {
         }
       }
     }
-
   }
 
   private scheduleNextTimelineTick(): void {

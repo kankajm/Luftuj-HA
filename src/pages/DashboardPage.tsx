@@ -1,4 +1,4 @@
-import { Card, Container, Stack, Text, Title } from "@mantine/core";
+import { Container, Stack, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { useDashboardStatus } from "../hooks/useDashboardStatus";
 import { StatusCard } from "../components/dashboard/StatusCard";
@@ -6,7 +6,7 @@ import { HruStatusCard } from "../components/dashboard/HruStatusCard";
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const { haStatus, haLoading, modbusStatus, hruStatus } = useDashboardStatus();
+  const { haStatus, haLoading, modbusStatus, hruStatus, hruName } = useDashboardStatus();
 
   function getHaStatusType() {
     if (haLoading) return "neutral";
@@ -52,11 +52,7 @@ export function DashboardPage() {
           }
         />
 
-        <HruStatusCard status={hruStatus} t={t} />
-
-        <Card shadow="sm" padding="lg" withBorder>
-          <Text c="dimmed">{t("dashboard.placeholder")}</Text>
-        </Card>
+        <HruStatusCard status={hruStatus} hruName={hruName} t={t} />
       </Stack>
     </Container>
   );

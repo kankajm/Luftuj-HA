@@ -59,6 +59,11 @@ export function TimelinePage() {
   // Auxiliary Data
   const [valves, setValves] = useState<Valve[]>([]);
   const [hruModes, setHruModes] = useState<string[]>([]);
+  const [hruCapabilities, setHruCapabilities] = useState<
+    Pick<hruApi.HruUnit, "capabilities">["capabilities"]
+  >({});
+  const [powerUnit, setPowerUnit] = useState<string>("%");
+  const [temperatureUnit, setTemperatureUnit] = useState<string>("°C");
 
   // -- Effects --
   useEffect(() => {
@@ -72,9 +77,21 @@ export function TimelinePage() {
 
         const units = await hruApi.fetchHruUnits().catch(() => []);
         const first = units[0];
-        const values = first?.registers?.mode?.values;
-        if (Array.isArray(values) && values.length > 0) {
-          setHruModes(values);
+        const values = first?.registers?.read?.mode?.values;
+        if (values) {
+          const modeList = Object.values(values);
+          if (modeList.length > 0) {
+            setHruModes(modeList);
+          }
+        }
+        if (first?.capabilities) {
+          setHruCapabilities(first.capabilities);
+        }
+        if (first?.registers?.read?.power?.unit) {
+          setPowerUnit(first.registers.read.power.unit);
+        }
+        if (first?.registers?.read?.temperature?.unit) {
+          setTemperatureUnit(first.registers.read.temperature.unit);
         }
       } catch {
         // ignore aux load errors
@@ -219,6 +236,8 @@ export function TimelinePage() {
         onEdit={handleEditMode}
         onDelete={deleteMode}
         t={t}
+        powerUnit={powerUnit}
+        temperatureUnit={temperatureUnit}
       />
 
       {/* Copy/Paste Hint */}
@@ -279,6 +298,7 @@ export function TimelinePage() {
         onSave={handleSaveEvent}
         onChange={setEditingEvent}
         t={t}
+        hruCapabilities={hruCapabilities}
       />
 
       <TimelineModeModal
@@ -289,6 +309,9 @@ export function TimelinePage() {
         onClose={() => setModeModalOpen(false)}
         onSave={handleSaveMode}
         t={t}
+        hruCapabilities={hruCapabilities}
+        powerUnit={powerUnit}
+        temperatureUnit={temperatureUnit}
       />
     </Stack>
   );

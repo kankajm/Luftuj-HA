@@ -9,9 +9,19 @@ interface TimelineModeListProps {
   onEdit: (mode: Mode) => void;
   onDelete: (id: number) => void;
   t: TFunction;
+  powerUnit?: string;
+  temperatureUnit?: string;
 }
 
-export function TimelineModeList({ modes, onAdd, onEdit, onDelete, t }: TimelineModeListProps) {
+export function TimelineModeList({
+  modes,
+  onAdd,
+  onEdit,
+  onDelete,
+  t,
+  powerUnit = "%",
+  temperatureUnit = "°C",
+}: TimelineModeListProps) {
   return (
     <Card withBorder radius="md" padding="md">
       <Stack gap="sm">
@@ -55,8 +65,9 @@ export function TimelineModeList({ modes, onAdd, onEdit, onDelete, t }: Timeline
                     </Group>
                   </Group>
                   <Text size="xs" c="dimmed">
-                    {t("settings.timeline.hru")}: {m.power ?? "-"}%{" "}
-                    {m.temperature !== undefined ? ` | ${m.temperature}°C` : ""}
+                    {t("settings.timeline.hru")}: {m.power ?? "-"}
+                    {powerUnit}{" "}
+                    {m.temperature !== undefined ? ` | ${m.temperature}${temperatureUnit}` : ""}
                   </Text>
                 </Stack>
               </Card>

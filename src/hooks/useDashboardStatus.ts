@@ -3,8 +3,23 @@ import { resolveApiUrl, resolveWebSocketUrl } from "../utils/api";
 
 export type ConnectionState = "connected" | "connecting" | "disconnected" | "offline";
 export type ModbusState = "loading" | "reachable" | "unreachable";
+
+export interface RegisterInfo {
+  unit?: string;
+  scale?: number;
+  precision?: number;
+}
+
 export type HruState =
-  | { power: number; temperature: number; mode: string }
+  | {
+      power: number;
+      temperature: number;
+      mode: string;
+      registers?: {
+        power?: RegisterInfo;
+        temperature?: RegisterInfo;
+      };
+    }
   | { error: string }
   | null;
 
@@ -16,12 +31,13 @@ export function useDashboardStatus() {
   const [modbusPort, setModbusPort] = useState(502);
   const [modbusStatus, setModbusStatus] = useState<ModbusState>("loading");
 
+  const [hruName, setHruName] = useState<string | null>(null);
   const [hruStatus, setHruStatus] = useState<HruState>(null);
 
   const valvesWsRef = useRef<WebSocket | null>(null);
   const valvesReconnectRef = useRef<number | null>(null);
 
-  // Load Modbus Settings
+  // Load Modbus Settings and HRU Units
   useEffect(() => {
     const envHost = (import.meta.env.VITE_MODBUS_HOST as string | undefined) ?? undefined;
     const envPortRaw = import.meta.env.VITE_MODBUS_PORT as string | number | undefined;
@@ -34,19 +50,42 @@ export function useDashboardStatus() {
     setModbusPort(envPort ?? 502);
 
     let canceled = false;
-    async function loadSettings() {
+    async function loadData() {
       try {
-        const res = await fetch(resolveApiUrl("/api/settings/hru"));
-        if (!res.ok) return;
-        const data = (await res.json()) as { host?: string; port?: number };
+        const [settingsRes, unitsRes] = await Promise.all([
+          fetch(resolveApiUrl("/api/settings/hru")),
+          fetch(resolveApiUrl("/api/hru/units")),
+        ]);
+
         if (canceled) return;
-        if (data.host) setModbusHost(data.host);
-        if (Number.isFinite(data.port)) setModbusPort(data.port as number);
+
+        let unitId: string | null = null;
+
+        if (settingsRes.ok) {
+          const data = (await settingsRes.json()) as {
+            host?: string;
+            port?: number;
+            unit?: string;
+          };
+          if (data.host) setModbusHost(data.host);
+          if (Number.isFinite(data.port)) setModbusPort(data.port as number);
+          if (data.unit) {
+            unitId = data.unit;
+          }
+        }
+
+        if (unitsRes.ok && unitId) {
+          const units = (await unitsRes.json()) as Array<{ id: string; name: string }>;
+          const found = units.find((u) => u.id === unitId);
+          if (found) {
+            setHruName(found.name);
+          }
+        }
       } catch {
         // ignore
       }
     }
-    void loadSettings();
+    void loadData();
     return () => {
       canceled = true;
     };
@@ -124,9 +163,16 @@ export function useDashboardStatus() {
         }
         const data = (await res.json()) as {
           value?: { power: number; temperature: number; mode: string };
+          registers?: {
+            power?: { unit?: string; scale?: number; precision?: number };
+            temperature?: { unit?: string; scale?: number; precision?: number };
+          };
         };
         if (data?.value) {
-          setHruStatus(data.value);
+          setHruStatus({
+            ...data.value,
+            registers: data.registers,
+          });
         } else {
           setHruStatus({ error: "Invalid HRU response" });
         }
@@ -224,5 +270,6 @@ export function useDashboardStatus() {
     haLoading,
     modbusStatus,
     hruStatus,
+    hruName,
   };
 }

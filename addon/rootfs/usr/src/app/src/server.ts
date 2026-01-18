@@ -168,7 +168,7 @@ const host = "0.0.0.0";
 async function start() {
   try {
     logger.info("Initializing database...");
-    setupDatabase();
+    setupDatabase(logger);
   } catch (err) {
     logger.fatal({ err }, "Failed to initialize database");
     throw err;

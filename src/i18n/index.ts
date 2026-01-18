@@ -32,7 +32,7 @@ void i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: "en",
+    fallbackLng: "cs",
     defaultNS: "common",
     interpolation: {
       escapeValue: false,
@@ -63,14 +63,14 @@ export async function setLanguage(language: string) {
 
 export function getInitialLanguage() {
   if (typeof window === "undefined") {
-    return "en";
+    return "cs";
   }
   const stored = window.localStorage.getItem("luftujha-language");
   if (stored && isSupportedLanguage(stored)) {
     return stored;
   }
-  const browser = (navigator.language ?? "en").split("-")[0];
-  return isSupportedLanguage(browser) ? browser : "en";
+  const browser = (navigator.language ?? "cs").split("-")[0];
+  return isSupportedLanguage(browser) ? browser : "cs";
 }
 
 export default i18n;

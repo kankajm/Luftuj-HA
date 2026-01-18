@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   Button,
-  Card,
   FileButton,
   Group,
   SegmentedControl,
@@ -16,8 +15,22 @@ import {
   PasswordInput,
   useMantineColorScheme,
   useComputedColorScheme,
+  Accordion,
+  SimpleGrid,
+  Paper,
+  Badge,
 } from "@mantine/core";
-import { IconDownload, IconUpload, IconAlertCircle } from "@tabler/icons-react";
+import {
+  IconDownload,
+  IconUpload,
+  IconLanguage,
+  IconMoon,
+  IconSun,
+  IconSettings,
+  IconServer,
+  IconDatabase,
+  IconCheck,
+} from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
@@ -32,7 +45,6 @@ export function SettingsPage() {
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [savingHru, setSavingHru] = useState(false);
   const [probingHru, setProbingHru] = useState(false);
-  const [savingMode, setSavingMode] = useState(false);
   const [hruUnits, setHruUnits] = useState<Array<{ value: string; label: string }>>([]);
   const [hruSettings, setHruSettings] = useState({
     unit: null as string | null,
@@ -45,7 +57,6 @@ export function SettingsPage() {
     temperature: number;
     mode: string;
   } | null>(null);
-  const [addonMode, setAddonMode] = useState<"manual" | "timeline">("timeline");
   const [savingMqtt, setSavingMqtt] = useState(false);
   const [mqttSettings, setMqttSettings] = useState({
     enabled: false,
@@ -71,11 +82,6 @@ export function SettingsPage() {
       { label: t("settings.language.options.en"), value: "en" },
       { label: t("settings.language.options.cs"), value: "cs" },
     ],
-    [t],
-  );
-
-  const modeOptions = useMemo(
-    () => [{ label: t("settings.mode.timeline"), value: "timeline" }],
     [t],
   );
 
@@ -204,10 +210,9 @@ export function SettingsPage() {
     async function loadData() {
       setLoadingUnits(true);
       try {
-        const [unitsRes, settingsRes, modeRes, mqttRes] = await Promise.all([
+        const [unitsRes, settingsRes, mqttRes] = await Promise.all([
           fetch(resolveApiUrl("/api/hru/units")),
           fetch(resolveApiUrl("/api/settings/hru")),
-          fetch(resolveApiUrl("/api/settings/mode")),
           fetch(resolveApiUrl("/api/settings/mqtt")),
         ]);
 
@@ -220,9 +225,6 @@ export function SettingsPage() {
         if (settingsRes.ok) {
           const settings = await settingsRes.json();
           setHruSettings(settings);
-        }
-        if (modeRes.ok) {
-          setAddonMode("timeline");
         }
         if (mqttRes.ok) {
           const mqtt = await mqttRes.json();
@@ -359,57 +361,6 @@ export function SettingsPage() {
     }
   }, [hruSettings.unit, t]);
 
-  const persistModePreference = useCallback(
-    async (value: "manual" | "timeline") => {
-      setSavingMode(true);
-      try {
-        const response = await fetch(resolveApiUrl("/api/settings/mode"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: value }),
-        });
-        if (!response.ok) {
-          const detail = await response.text();
-          notifications.show({
-            title: t("settings.mode.notifications.failedTitle"),
-            message: t("settings.mode.notifications.failedMessage", {
-              message: detail || t("settings.mode.notifications.unknown"),
-            }),
-            color: "red",
-          });
-          return;
-        }
-        notifications.show({
-          title: t("settings.mode.notifications.updatedTitle"),
-          message: t("settings.mode.notifications.updatedMessage", {
-            mode: value === "timeline" ? t("settings.mode.timeline") : t("settings.mode.manual"),
-          }),
-          color: value === "timeline" ? "violet" : "blue",
-        });
-      } catch (persistError) {
-        notifications.show({
-          title: t("settings.mode.notifications.failedTitle"),
-          message: t("settings.mode.notifications.failedMessage", {
-            message:
-              persistError instanceof Error
-                ? persistError.message
-                : t("settings.mode.notifications.unknown"),
-          }),
-          color: "red",
-        });
-      } finally {
-        setSavingMode(false);
-      }
-    },
-    [t],
-  );
-
-  const handleModeChange = useCallback(() => {
-    const mode = "timeline" as const;
-    setAddonMode(mode);
-    void persistModePreference(mode);
-  }, [persistModePreference]);
-
   async function handleExport() {
     try {
       logger.info("Exporting database via frontend action");
@@ -520,278 +471,364 @@ export function SettingsPage() {
     }
   }
 
-  function renderImportButton(props: { onClick: () => void }) {
-    return (
-      <Button
-        {...props}
-        leftSection={uploading ? undefined : <IconUpload size={16} />}
-        loading={uploading}
-        variant="filled"
-        color="blue"
-      >
-        {uploading ? t("settings.database.importing") : t("settings.database.import")}
-      </Button>
-    );
-  }
-
   return (
-    <Stack gap="lg">
-      <Stack gap="sm">
-        <Title order={2}>{t("settings.title")}</Title>
-        <Text c="dimmed">{t("settings.description")}</Text>
+    <Stack gap="xl">
+      <Stack gap={0}>
+        <Group gap="sm">
+          <IconSettings size={32} color="var(--mantine-primary-color-5)" />
+          <Title order={1}>{t("settings.title")}</Title>
+        </Group>
+        <Text size="lg" c="dimmed" mt="xs">
+          {t("settings.description")}
+        </Text>
       </Stack>
 
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Title order={4}>{t("settings.language.title")}</Title>
-          <Text size="sm" c="dimmed">
-            {t("settings.language.description")}
-          </Text>
-          <SegmentedControl
-            fullWidth
-            value={currentLanguage}
-            data={languageOptions}
-            onChange={handleLanguageChange}
-            disabled={savingLanguage}
-          />
-        </Stack>
-      </Card>
+      <Accordion variant="separated" defaultValue="appearance">
+        <Accordion.Item value="appearance">
+          <Accordion.Control icon={<IconSun size={20} />}>
+            <Text fw={600}>{t("settings.appearance.title")}</Text>
+          </Accordion.Control>
+          <Accordion.Panel>
+            <Stack gap="lg">
+              <Paper p="md" withBorder radius="md">
+                <Stack gap="md">
+                  <Group gap="sm">
+                    <IconLanguage size={20} color="var(--mantine-primary-color-5)" />
+                    <Text fw={500}>{t("settings.language.title")}</Text>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    {t("settings.language.description")}
+                  </Text>
+                  <SegmentedControl
+                    fullWidth
+                    value={currentLanguage}
+                    data={languageOptions}
+                    onChange={handleLanguageChange}
+                    disabled={savingLanguage}
+                    size="md"
+                  />
+                </Stack>
+              </Paper>
 
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Title order={4}>{t("settings.theme.title")}</Title>
-          <Text size="sm" c="dimmed">
-            {t("settings.theme.description")}
-          </Text>
-          <SegmentedControl
-            fullWidth
-            value={computedColorScheme}
-            data={themeOptions}
-            onChange={handleThemeChange}
-            disabled={savingTheme}
-          />
-        </Stack>
-      </Card>
-
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Title order={4}>{t("settings.mode.title")}</Title>
-          <Text size="sm" c="dimmed">
-            {t("settings.mode.description")}
-          </Text>
-          <SegmentedControl
-            fullWidth
-            value={addonMode}
-            data={modeOptions}
-            onChange={handleModeChange}
-            disabled={savingMode}
-          />
-        </Stack>
-      </Card>
-
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Title order={4}>{t("settings.hru.title")}</Title>
-          <Text size="sm" c="dimmed">
-            {t("settings.hru.description")}
-          </Text>
-          <Text size="xs" c="blue">
-            {t("settings.hru.saveBeforeProbeHint")}
-          </Text>
-          <Select
-            data={hruUnits}
-            value={hruSettings.unit ?? ""}
-            onChange={(value) => {
-              setHruSettings((prev) => ({ ...prev, unit: value === "" ? null : value }));
-              setProbeResult(null);
-            }}
-            label={t("settings.hru.unitLabel")}
-            placeholder={t("settings.hru.unitPlaceholder")}
-            disabled={loadingUnits}
-            searchable
-            clearable
-          />
-          <Group grow>
-            <TextInput
-              value={hruSettings.host}
-              onChange={(e) => {
-                setHruSettings((prev) => ({ ...prev, host: e.target.value }));
-                setProbeResult(null);
-              }}
-              label={t("settings.hru.hostLabel")}
-              placeholder="localhost"
-              error={hruSettings.host.trim() === "" ? t("settings.hru.hostRequired") : undefined}
-            />
-            <NumberInput
-              value={hruSettings.port}
-              onChange={(value) => {
-                const numericValue = typeof value === "number" ? value : Number(value ?? 502);
-                setHruSettings((prev) => ({
-                  ...prev,
-                  port: Number.isFinite(numericValue) ? numericValue : 502,
-                }));
-                setProbeResult(null);
-              }}
-              label={t("settings.hru.portLabel")}
-              min={1}
-              max={65535}
-              step={1}
-            />
-            <NumberInput
-              value={hruSettings.unitId}
-              onChange={(value) => {
-                const numericValue = typeof value === "number" ? value : Number(value ?? 1);
-                setHruSettings((prev) => ({
-                  ...prev,
-                  unitId: Number.isFinite(numericValue) ? numericValue : 1,
-                }));
-                setProbeResult(null);
-              }}
-              label={t("settings.hru.unitIdLabel")}
-              min={1}
-              max={247}
-              step={1}
-            />
-          </Group>
-          <Group>
-            <Button
-              onClick={saveHruSettings}
-              loading={savingHru}
-              disabled={loadingUnits || hruSettings.host.trim() === ""}
-            >
-              {t("settings.hru.save")}
-            </Button>
-            <Button
-              onClick={probeHru}
-              loading={probingHru}
-              disabled={!hruSettings.unit || loadingUnits || hruSettings.host.trim() === ""}
-              variant="light"
-            >
-              {t("settings.hru.probe")}
-            </Button>
-          </Group>
-          {probeResult && (
-            <Alert
-              icon={<IconAlertCircle size={16} />}
-              title={t("settings.hru.probeResultTitle")}
-              color="blue"
-              withCloseButton
-              onClose={() => setProbeResult(null)}
-            >
-              <Stack gap="xs">
-                <Text size="sm">
-                  {t("settings.hru.powerLabel")}: {probeResult.power}%
-                </Text>
-                <Text size="sm">
-                  {t("settings.hru.temperatureLabel")}: {probeResult.temperature}°C
-                </Text>
-                <Text size="sm">
-                  {t("settings.hru.modeLabel")}: {probeResult.mode}
-                </Text>
-              </Stack>
-            </Alert>
-          )}
-        </Stack>
-      </Card>
-
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Group justify="space-between">
-            <Stack gap={0}>
-              <Title order={4}>{t("settings.mqtt.title")}</Title>
-              <Text size="sm" c="dimmed">
-                {t("settings.mqtt.description")}
-              </Text>
+              <Paper p="md" withBorder radius="md">
+                <Stack gap="md">
+                  <Group gap="sm">
+                    {computedColorScheme === "dark" ? (
+                      <IconMoon size={20} color="var(--mantine-primary-color-5)" />
+                    ) : (
+                      <IconSun size={20} color="var(--mantine-primary-color-5)" />
+                    )}
+                    <Text fw={500}>{t("settings.theme.title")}</Text>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    {t("settings.theme.description")}
+                  </Text>
+                  <SegmentedControl
+                    fullWidth
+                    value={computedColorScheme}
+                    data={themeOptions}
+                    onChange={handleThemeChange}
+                    disabled={savingTheme}
+                    size="md"
+                  />
+                </Stack>
+              </Paper>
             </Stack>
-            <Switch
-              label={t("settings.mqtt.enabled")}
-              checked={mqttSettings.enabled}
-              onChange={(e) => {
-                const checked = e.currentTarget.checked;
-                setMqttSettings((prev) => ({ ...prev, enabled: checked }));
-              }}
-            />
-          </Group>
+          </Accordion.Panel>
+        </Accordion.Item>
 
-          {mqttSettings.enabled && (
-            <>
-              <Group grow>
-                <TextInput
-                  value={mqttSettings.host}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setMqttSettings((prev) => ({ ...prev, host: val }));
-                  }}
-                  label={t("settings.mqtt.host")}
-                  placeholder="core-mosquitto"
-                  error={
-                    mqttSettings.enabled && mqttSettings.host.trim() === ""
-                      ? t("settings.mqtt.hostRequired")
-                      : undefined
-                  }
-                />
-                <NumberInput
-                  value={mqttSettings.port}
-                  onChange={(value) => {
-                    const num = typeof value === "number" ? value : Number(value ?? 1883);
-                    setMqttSettings((prev) => ({ ...prev, port: num }));
-                  }}
-                  label={t("settings.mqtt.port")}
-                  min={1}
-                  max={65535}
-                />
-              </Group>
-              <Group grow>
-                <TextInput
-                  value={mqttSettings.user}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setMqttSettings((prev) => ({ ...prev, user: val }));
-                  }}
-                  label={t("settings.mqtt.user")}
-                  autoComplete="off"
-                />
-                <PasswordInput
-                  value={mqttSettings.password}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setMqttSettings((prev) => ({ ...prev, password: val }));
-                  }}
-                  label={t("settings.mqtt.password")}
-                  autoComplete="new-password"
-                />
-              </Group>
-            </>
-          )}
+        <Accordion.Item value="hru">
+          <Accordion.Control icon={<IconServer size={20} />}>
+            <Text fw={600}>{t("settings.hru.title")}</Text>
+          </Accordion.Control>
+          <Accordion.Panel>
+            <Stack gap="lg">
+              <Paper p="md" withBorder radius="md">
+                <Stack gap="md">
+                  <Text fw={500} size="md">
+                    {t("settings.hru.description")}
+                  </Text>
+                  <Text size="sm" c="blue" fs="italic">
+                    {t("settings.hru.saveBeforeProbeHint")}
+                  </Text>
 
-          <Group>
-            <Button
-              onClick={saveMqttSettings}
-              loading={savingMqtt}
-              disabled={mqttSettings.enabled && mqttSettings.host.trim() === ""}
-            >
-              {t("settings.mqtt.save")}
-            </Button>
-          </Group>
-        </Stack>
-      </Card>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                    <Select
+                      data={hruUnits}
+                      value={hruSettings.unit ?? ""}
+                      onChange={(value) => {
+                        setHruSettings((prev) => ({ ...prev, unit: value === "" ? null : value }));
+                        setProbeResult(null);
+                      }}
+                      label={t("settings.hru.unitLabel")}
+                      placeholder={t("settings.hru.unitPlaceholder")}
+                      disabled={loadingUnits}
+                      searchable
+                      clearable
+                      size="md"
+                    />
+                    <NumberInput
+                      value={hruSettings.port}
+                      onChange={(value) => {
+                        const numericValue =
+                          typeof value === "number" ? value : Number(value ?? 502);
+                        setHruSettings((prev) => ({
+                          ...prev,
+                          port: Number.isFinite(numericValue) ? numericValue : 502,
+                        }));
+                        setProbeResult(null);
+                      }}
+                      label={t("settings.hru.portLabel")}
+                      min={1}
+                      max={65535}
+                      step={1}
+                      size="md"
+                    />
+                  </SimpleGrid>
 
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Title order={4}>{t("settings.database.title")}</Title>
-          <Text size="sm" c="dimmed">
-            {t("settings.database.description")}
-          </Text>
-          <Group gap="sm">
-            <Button leftSection={<IconDownload size={16} />} onClick={handleExport} variant="light">
-              {t("settings.database.export")}
-            </Button>
-            <FileButton onChange={handleImport} accept=".db" disabled={uploading}>
-              {renderImportButton}
-            </FileButton>
-          </Group>
-        </Stack>
-      </Card>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                    <TextInput
+                      value={hruSettings.host}
+                      onChange={(e) => {
+                        setHruSettings((prev) => ({ ...prev, host: e.target.value }));
+                        setProbeResult(null);
+                      }}
+                      label={t("settings.hru.hostLabel")}
+                      placeholder="localhost"
+                      error={
+                        hruSettings.host.trim() === "" ? t("settings.hru.hostRequired") : undefined
+                      }
+                      size="md"
+                    />
+                    <NumberInput
+                      value={hruSettings.unitId}
+                      onChange={(value) => {
+                        const numericValue = typeof value === "number" ? value : Number(value ?? 1);
+                        setHruSettings((prev) => ({
+                          ...prev,
+                          unitId: Number.isFinite(numericValue) ? numericValue : 1,
+                        }));
+                        setProbeResult(null);
+                      }}
+                      label={t("settings.hru.unitIdLabel")}
+                      min={1}
+                      max={247}
+                      step={1}
+                      size="md"
+                    />
+                  </SimpleGrid>
+
+                  <Group mt="sm">
+                    <Button
+                      onClick={saveHruSettings}
+                      loading={savingHru}
+                      disabled={loadingUnits || hruSettings.host.trim() === ""}
+                      size="md"
+                      variant="filled"
+                    >
+                      {t("settings.hru.save")}
+                    </Button>
+                    <Button
+                      onClick={probeHru}
+                      loading={probingHru}
+                      disabled={!hruSettings.unit || loadingUnits || hruSettings.host.trim() === ""}
+                      variant="light"
+                      size="md"
+                    >
+                      {t("settings.hru.probe")}
+                    </Button>
+                  </Group>
+                </Stack>
+              </Paper>
+
+              {probeResult && (
+                <Alert
+                  icon={<IconCheck size={20} />}
+                  title={t("settings.hru.probeResultTitle")}
+                  color="green"
+                  withCloseButton
+                  onClose={() => setProbeResult(null)}
+                  radius="md"
+                >
+                  <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+                    <Group gap="xs">
+                      <Badge color="green" variant="light" circle>
+                        P
+                      </Badge>
+                      <div>
+                        <Text size="xs" c="dimmed">
+                          {t("settings.hru.powerLabel")}
+                        </Text>
+                        <Text fw={600} size="lg">
+                          {probeResult.power}%
+                        </Text>
+                      </div>
+                    </Group>
+                    <Group gap="xs">
+                      <Badge color="orange" variant="light" circle>
+                        T
+                      </Badge>
+                      <div>
+                        <Text size="xs" c="dimmed">
+                          {t("settings.hru.temperatureLabel")}
+                        </Text>
+                        <Text fw={600} size="lg">
+                          {probeResult.temperature}°C
+                        </Text>
+                      </div>
+                    </Group>
+                    <Group gap="xs">
+                      <Badge color="blue" variant="light" circle>
+                        M
+                      </Badge>
+                      <div>
+                        <Text size="xs" c="dimmed">
+                          {t("settings.hru.modeLabel")}
+                        </Text>
+                        <Text fw={600} size="lg">
+                          {probeResult.mode}
+                        </Text>
+                      </div>
+                    </Group>
+                  </SimpleGrid>
+                </Alert>
+              )}
+            </Stack>
+          </Accordion.Panel>
+        </Accordion.Item>
+
+        <Accordion.Item value="mqtt">
+          <Accordion.Control icon={<IconSettings size={20} />}>
+            <Text fw={600}>{t("settings.mqtt.title")}</Text>
+          </Accordion.Control>
+          <Accordion.Panel>
+            <Paper p="md" withBorder radius="md">
+              <Stack gap="md">
+                <Group justify="space-between" align="center">
+                  <Text fw={500} size="md">
+                    {t("settings.mqtt.description")}
+                  </Text>
+                  <Switch
+                    label={t("settings.mqtt.enabled")}
+                    checked={mqttSettings.enabled}
+                    onChange={(e) => {
+                      const checked = e.currentTarget.checked;
+                      setMqttSettings((prev) => ({ ...prev, enabled: checked }));
+                    }}
+                    size="md"
+                  />
+                </Group>
+
+                {mqttSettings.enabled && (
+                  <Stack gap="md" mt="xs">
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                      <TextInput
+                        value={mqttSettings.host}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMqttSettings((prev) => ({ ...prev, host: val }));
+                        }}
+                        label={t("settings.mqtt.host")}
+                        placeholder="core-mosquitto"
+                        error={
+                          mqttSettings.enabled && mqttSettings.host.trim() === ""
+                            ? t("settings.mqtt.hostRequired")
+                            : undefined
+                        }
+                        size="md"
+                      />
+                      <NumberInput
+                        value={mqttSettings.port}
+                        onChange={(value) => {
+                          const num = typeof value === "number" ? value : Number(value ?? 1883);
+                          setMqttSettings((prev) => ({ ...prev, port: num }));
+                        }}
+                        label={t("settings.mqtt.port")}
+                        min={1}
+                        max={65535}
+                        size="md"
+                      />
+                    </SimpleGrid>
+
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                      <TextInput
+                        value={mqttSettings.user}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMqttSettings((prev) => ({ ...prev, user: val }));
+                        }}
+                        label={t("settings.mqtt.user")}
+                        autoComplete="off"
+                        size="md"
+                      />
+                      <PasswordInput
+                        value={mqttSettings.password}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMqttSettings((prev) => ({ ...prev, password: val }));
+                        }}
+                        label={t("settings.mqtt.password")}
+                        autoComplete="new-password"
+                        size="md"
+                      />
+                    </SimpleGrid>
+                  </Stack>
+                )}
+
+                <Button
+                  onClick={saveMqttSettings}
+                  loading={savingMqtt}
+                  disabled={mqttSettings.enabled && mqttSettings.host.trim() === ""}
+                  variant="filled"
+                  size="md"
+                >
+                  {t("settings.mqtt.save")}
+                </Button>
+              </Stack>
+            </Paper>
+          </Accordion.Panel>
+        </Accordion.Item>
+
+        <Accordion.Item value="database">
+          <Accordion.Control icon={<IconDatabase size={20} />}>
+            <Text fw={600}>{t("settings.database.title")}</Text>
+          </Accordion.Control>
+          <Accordion.Panel>
+            <Paper p="md" withBorder radius="md">
+              <Stack gap="md">
+                <Text fw={500} size="md">
+                  {t("settings.database.description")}
+                </Text>
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                  <Button
+                    leftSection={<IconDownload size={20} />}
+                    onClick={handleExport}
+                    variant="light"
+                    size="md"
+                  >
+                    {t("settings.database.export")}
+                  </Button>
+                  <FileButton onChange={handleImport} accept=".db" disabled={uploading}>
+                    {(props) => (
+                      <Button
+                        {...props}
+                        leftSection={<IconUpload size={20} />}
+                        loading={uploading}
+                        variant="filled"
+                        size="md"
+                      >
+                        {uploading
+                          ? t("settings.database.importing")
+                          : t("settings.database.import")}
+                      </Button>
+                    )}
+                  </FileButton>
+                </SimpleGrid>
+              </Stack>
+            </Paper>
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
     </Stack>
   );
 }

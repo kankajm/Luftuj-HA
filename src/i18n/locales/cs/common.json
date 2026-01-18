@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Luftator Control",
+    "title": "Ovládací panel Luftátoru",
     "nav": {
       "dashboard": "Přehled",
       "valves": "Ventily",
@@ -22,7 +22,10 @@
   },
   "settings": {
     "title": "Nastavení",
-    "description": "Zálohujte nebo obnovte data Luftatoru spravovaná touto instalací Home Assistant.",
+    "description": "Zálohujte nebo obnovte data Luftatoru spravovaná touto instalací Home Assistanta.",
+    "appearance": {
+      "title": "Vzhled"
+    },
     "language": {
       "title": "Jazyk",
       "description": "Vyberte jazyk uživatelského rozhraní.",
@@ -63,7 +66,7 @@
     },
     "timeline": {
       "title": "Časová osa",
-      "description": "Naplánujte, kdy by se měly HRU a Luftator akce dít během týdne",
+      "description": "Naplánujte chování rekuperační jednotky a akce Luftatoru v průběhu týdne",
       "addEvent": "Přidat událost",
       "addMode": "Přidat režim",
       "modesTitle": "Režimy",
@@ -82,7 +85,7 @@
       "loading": "Načítání událostí...",
       "noEvents": "Žádné nakonfigurované události",
       "confirmDelete": "Opravdu chcete smazat tuto událost?",
-      "hru": "HRU",
+      "hru": "Rekuperační jednotka",
       "valves": "Ventily",
       "allDays": "Všechny dny",
       "monday": "Pondělí",
@@ -97,7 +100,7 @@
         "endTime": "Čas konce",
         "dayOfWeek": "Den v týdnu",
         "priority": "Priorita",
-        "hruSettings": "Nastavení HRU",
+        "hruSettings": "Nastavení rekuperace",
         "valveSettings": "Nastavení ventilů"
       },
       "modal": {
@@ -132,10 +135,10 @@
       "priorityDescription": "Vyšší priorita vyhrává při překrývajících se událostech"
     },
     "hru": {
-      "title": "Větrací jednotka",
-      "description": "Konfigurujte vaši HRU jednotku a Modbus TCP připojení",
-      "saveBeforeProbeHint": "Uložte nastavení před testováním pro použití nejnovější konfigurace.",
-      "unitLabel": "HRU jednotka",
+      "title": "Rekuperační jednotka",
+      "description": "Nakonfigurujte rekuperační jednotku a připojení Modbus TCP",
+      "saveBeforeProbeHint": "Před testováním nastavení uložte, aby se použila aktuální konfigurace.",
+      "unitLabel": "Rekuperační jednotka",
       "unitPlaceholder": "Vyberte jednotku",
       "hostLabel": "Modbus host",
       "portLabel": "Port",
@@ -143,20 +146,40 @@
       "hostRequired": "Host je povinný",
       "save": "Uložit nastavení",
       "probe": "Testovat připojení",
-      "probeResultTitle": "Aktuální hodnoty HRU",
+      "probeResultTitle": "Aktuální hodnoty rekuperační jednotky",
       "powerLabel": "Výkon",
       "temperatureLabel": "Teplota",
       "modeLabel": "Režim",
       "notifications": {
-        "loadFailedTitle": "Chyba načítání HRU dat",
+        "loadFailedTitle": "Chyba načítání dat rekuperační jednotky",
         "loadFailedMessage": "Nepodařilo se načíst dostupné jednotky nebo aktuální nastavení",
         "saveSuccessTitle": "Nastavení uloženo",
-        "saveSuccessMessage": "Konfigurace HRU byla úspěšně uložena",
+        "saveSuccessMessage": "Konfigurace rekuperační jednotky byla úspěšně uložena",
         "saveFailedTitle": "Chyba ukládání nastavení",
         "saveFailedMessage": "{{message}}",
         "probeFailedTitle": "Test selhal",
         "probeFailedMessage": "{{message}}",
-        "noUnitSelected": "Nejprve vyberte HRU jednotku",
+        "noUnitSelected": "Nejprve vyberte rekuperační jednotku",
+        "unknown": "Neznámá chyba"
+      }
+    },
+    "mqtt": {
+      "title": "Integrace MQTT",
+      "description": "Publikování senzorů rekuperační jednotky do Home Assistanta pomocí MQTT Discovery",
+      "enabled": "Povoleno",
+      "host": "Broker host",
+      "port": "Port",
+      "user": "Uživatelské jméno",
+      "password": "Heslo",
+      "save": "Uložit nastavení MQTT",
+      "hostRequired": "Host je povinný, pokud je povoleno",
+      "notifications": {
+        "loadFailedTitle": "Nepodařilo se načíst nastavení MQTT",
+        "loadFailedMessage": "Nepodařilo se načíst konfiguraci MQTT",
+        "saveSuccessTitle": "Nastavení uloženo",
+        "saveSuccessMessage": "Konfigurace MQTT uložena a služba restartována",
+        "saveFailedTitle": "Nepodařilo se uložit nastavení MQTT",
+        "saveFailedMessage": "{{message}}",
         "unknown": "Neznámá chyba"
       }
     },
@@ -181,7 +204,7 @@
   },
   "schedule": {
     "title": "Týdenní plán",
-    "description": "Nastavte, kdy má HRU měnit režimy během týdne.",
+    "description": "Nastavte, kdy má rekuperační jednotka měnit režimy během týdne.",
     "add": "Přidat záznam",
     "empty": "Žádné záznamy pro tento den",
     "copyHint": "Zkopírujte plán dne a vložte jej do jiného dne.",
@@ -194,7 +217,7 @@
     "modalTitle": "Záznam plánu",
     "notifications": {
       "loadFailedTitle": "Nepodařilo se načíst plán",
-      "loadFailedModes": "Nepodařilo se načíst režimy HRU. Nejprve nakonfigurujte jednotku HRU.",
+      "loadFailedModes": "Nepodařilo se načíst režimy rekuperační jednotky. Nejprve nakonfigurujte rekuperační jednotku.",
       "loadFailedEvents": "Nepodařilo se načíst záznamy plánu.",
       "validationFailedTitle": "Validace selhala",
       "saveFailedTitle": "Nepodařilo se uložit záznam",
@@ -207,9 +230,8 @@
   },
   "dashboard": {
     "title": "Přehled",
-    "placeholder": "Přehledové widgety budou k dispozici brzy.",
     "haStatusTitle": "Home Assistant",
-    "haStatusDescription": "Backend připojení k WebSocketu Home Assistantu",
+    "haStatusDescription": "Připojení k WebSocketu Home Assistanta",
     "haStatus": {
       "connected": "Připojeno",
       "connecting": "Připojování…",
@@ -224,8 +246,8 @@
       "reachable": "Dostupný",
       "unreachable": "Nedostupný"
     },
-    "hruStatusTitle": "Živé hodnoty HRU",
-    "hruStatusDescription": "Čte registry HRU každých 10 sekund",
+    "hruStatusTitle": "Živé hodnoty rekuperační jednotky",
+    "hruStatusDescription": "Čte registry rekuperační jednotky každých 10 sekund",
     "hruStatusOk": "OK",
     "hruStatusError": "Chyba",
     "hruMode": "Režim"

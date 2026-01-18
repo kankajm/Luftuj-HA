@@ -6,73 +6,153 @@ import math
 
 # --- Configuration ---
 HOST = '0.0.0.0'
-PORT = 502  # Must match the 'port: 502' in your YAML.
-# Note: On Linux/Mac, ports < 1024 require 'sudo'.
+PORT = 502
 
-# --- Atrea/Home Assistant Register Map ---
-# Derived directly from your configuration.yaml
-REG_POWER       = 10704  # hru_requested_power_value (%)
-REG_MODE        = 10705  # hru_mode_value (Enum)
-REG_TEMP_SET    = 10706  # hru_requested_temperature_value (Scale 0.1)
+# --- Atrea RD5 Register Map ---
+# Based on definitions.ts for atrea-rd5
 
-# Extra Sensors (Standard Atrea) - kept for realism if you add them later
+# Read Registers
+REG_POWER_READ    = 10704  # Current power value (%)
+REG_MODE_READ     = 10705  # Current mode (Enum)
+REG_TEMP_READ     = 10706  # Current temperature (Scale 0.1, raw value)
+
+# Write Control Registers (Trigger writes)
+REG_POWER_CTRL    = 10700  # Control: write 0 to initiate power change
+REG_MODE_CTRL     = 10701  # Control: write 0 to initiate mode change
+REG_TEMP_CTRL    = 10702  # Control: write 0 to initiate temperature change
+
+# Write Target Registers (Actual values)
+REG_POWER_WRITE   = 10708  # Target power value (%)
+REG_MODE_WRITE    = 10709  # Target mode value
+REG_TEMP_WRITE    = 10710  # Target temperature (Scale 0.1, raw value)
+
+# Extra Sensors (simulated for realism)
 REG_TEMP_OUTDOOR = 10300
 REG_TEMP_SUPPLY  = 10301
 
+# Mode Enum (Czech names matching definitions.ts)
+MODE_VALUES = {
+    0: "Vypnuto",
+    1: "Auto",
+    2: "Větrání",
+    3: "Cirkulace+Větrání",
+    4: "Cirkulace",
+    5: "Noční předchlazení",
+    6: "Rozvážení",
+    7: "Přetlak",
+}
+
 # --- Data Store ---
-# Initial values matching your Input Number defaults
-registers = {
-    REG_POWER: 40,      # Default 40%
-    REG_MODE: 1,        # Default 1 (Automat)
-    REG_TEMP_SET: 225,  # Default 22.5 °C (225 raw)
-    REG_TEMP_OUTDOOR: 120, # 12.0 °C
-    REG_TEMP_SUPPLY: 200,  # 20.0 °C
+# Read registers (what the unit reports back)
+registers_read = {
+    REG_POWER_READ: 40,       # Default 40%
+    REG_MODE_READ: 2,         # Default 2 (Větrání)
+    REG_TEMP_READ: 225,       # Default 22.5 °C (225 raw)
+    REG_TEMP_OUTDOOR: 120,   # 12.0 °C
+    REG_TEMP_SUPPLY: 200,     # 20.0 °C
+}
+
+# Write control/target registers
+registers_write = {
+    REG_POWER_CTRL: 0,
+    REG_MODE_CTRL: 0,
+    REG_TEMP_CTRL: 0,
+    REG_POWER_WRITE: 40,
+    REG_MODE_WRITE: 2,
+    REG_TEMP_WRITE: 225,
 }
 
 reg_lock = threading.Lock()
 
 def get_register(addr):
+    """Read from appropriate register space"""
     with reg_lock:
-        return registers.get(addr, 0)
+        if addr in registers_read:
+            return registers_read[addr]
+        elif addr in registers_write:
+            return registers_write[addr]
+        else:
+            # Unknown register - return 0
+            print(f" [?] Read from unknown register {addr}")
+            return 0
 
 def set_register(addr, val):
+    """Write to appropriate register space"""
     with reg_lock:
-        old = registers.get(addr, 0)
-        registers[addr] = val
-        return old != val, old
+        old_val = 0
+        if addr in registers_read:
+            old_val = registers_read[addr]
+            registers_read[addr] = val
+        elif addr in registers_write:
+            old_val = registers_write[addr]
+            registers_write[addr] = val
+        else:
+            print(f" [?] Write to unknown register {addr} = {val}")
+            return False, val
+        return old_val != val, old_val
 
 def physics_loop():
     """
-    Simulates the unit reacting to your Home Assistant changes.
+    Simulates unit reacting to write commands.
+    This implements the Atrea RD5 write protocol:
+    1. Control register (10700-10702) is set to 0
+    2. Target register (10708-10710) is set to desired value
+    3. After delay, the read register is updated
     """
     print("[*] Physics Engine Running...")
-    t = 0
     while True:
-        time.sleep(1)
-        t += 1
+        time.sleep(0.1)  # Check every 100ms
 
         with reg_lock:
-            # Simulate Supply Temp moving toward Setpoint
-            # We read the raw integer values (225 = 22.5 C)
-            target = registers[REG_TEMP_SET]
-            current = registers[REG_TEMP_SUPPLY]
+            # Check for power write
+            if registers_write[REG_POWER_CTRL] == 0 and registers_write[REG_POWER_WRITE] != registers_read[REG_POWER_READ]:
+                target = registers_write[REG_POWER_WRITE]
+                current = registers_read[REG_POWER_READ]
+                print(f" [PHYSICS] Power: {current}% -> {target}%")
+                registers_read[REG_POWER_READ] = target
+                # Reset control register to prevent repeated writes
+                registers_write[REG_POWER_CTRL] = 1
 
-            # Simple approach logic
-            if current < target:
-                registers[REG_TEMP_SUPPLY] += 1
-            elif current > target:
-                registers[REG_TEMP_SUPPLY] -= 1
+            # Check for temperature write
+            if registers_write[REG_TEMP_CTRL] == 0 and registers_write[REG_TEMP_WRITE] != registers_read[REG_TEMP_READ]:
+                target = registers_write[REG_TEMP_WRITE]
+                current = registers_read[REG_TEMP_READ]
+                print(f" [PHYSICS] Temp: {current/10.0}°C -> {target/10.0}°C")
+                registers_read[REG_TEMP_READ] = target
+                # Reset control register
+                registers_write[REG_TEMP_CTRL] = 1
+
+            # Check for mode write
+            if registers_write[REG_MODE_CTRL] == 0 and registers_write[REG_MODE_WRITE] != registers_read[REG_MODE_READ]:
+                target = registers_write[REG_MODE_WRITE]
+                current = registers_read[REG_MODE_READ]
+                mode_str = MODE_VALUES.get(target, str(target))
+                print(f" [PHYSICS] Mode: {MODE_VALUES.get(current, str(current))} -> {mode_str}")
+                registers_read[REG_MODE_READ] = target
+                # Reset control register
+                registers_write[REG_MODE_CTRL] = 1
+
+            # Simulate Supply Temp moving toward Setpoint
+            target_temp = registers_read[REG_TEMP_READ]
+            current_supply = registers_read[REG_TEMP_SUPPLY]
+
+            if current_supply < target_temp:
+                registers_read[REG_TEMP_SUPPLY] += 1
+            elif current_supply > target_temp:
+                registers_read[REG_TEMP_SUPPLY] -= 1
 
             # Simulate Outdoor temp fluctuation
-            registers[REG_TEMP_OUTDOOR] = int(120 + 20 * math.sin(t / 10.0))
+            t = time.time()
+            registers_read[REG_TEMP_OUTDOOR] = int(120 + 20 * math.sin(t / 10.0))
 
 def parse_mbap(data):
+    """Parse Modbus TCP header"""
     if len(data) < 8: return None
     tid, pid, length, uid, fc = struct.unpack('>HHHBB', data[:8])
     return {'tid':tid, 'pid':pid, 'len':length, 'uid':uid, 'fc':fc, 'payload':data[8:]}
 
 def handle_client(conn, addr):
-    print(f"[+] Home Assistant connected from {addr}")
+    print(f"[+] Client connected from {addr}")
     try:
         while True:
             data = conn.recv(1024)
@@ -83,43 +163,63 @@ def handle_client(conn, addr):
 
             resp_payload = b''
 
-            # FC 03: Read Holding Registers (Home Assistant Polling)
+            # FC 03: Read Holding Registers
             if frame['fc'] == 3:
                 start_addr, count = struct.unpack('>HH', frame['payload'][:4])
 
                 vals = []
                 for i in range(count):
-                    # Fetch value from our simulated memory
                     vals.append(get_register(start_addr + i))
 
-                # Log specific reads for debugging
-                if start_addr == REG_POWER:
-                    print(f" [HA READ] Power: {vals[0]}%")
-                elif start_addr == REG_TEMP_SET:
-                    print(f" [HA READ] Set Temp: {vals[0]/10.0}°C")
-                elif start_addr == REG_MODE:
-                    print(f" [HA READ] Mode: {vals[0]}")
+                # Log specific reads
+                if REG_POWER_READ <= start_addr < REG_POWER_READ + count:
+                    idx = REG_POWER_READ - start_addr
+                    if 0 <= idx < count:
+                        print(f" [READ] Power: {vals[idx]}%")
+                if REG_MODE_READ <= start_addr < REG_MODE_READ + count:
+                    idx = REG_MODE_READ - start_addr
+                    if 0 <= idx < count:
+                        mode_val = vals[idx]
+                        print(f" [READ] Mode: {mode_val} ({MODE_VALUES.get(mode_val, 'Unknown')})")
+                if REG_TEMP_READ <= start_addr < REG_TEMP_READ + count:
+                    idx = REG_TEMP_READ - start_addr
+                    if 0 <= idx < count:
+                        print(f" [READ] Temperature: {vals[idx]/10.0}°C")
 
                 resp_payload = struct.pack('B', count * 2)
                 for v in vals:
                     resp_payload += struct.pack('>H', v)
 
-            # FC 06: Write Single Register (Home Assistant Commands)
+            # FC 06: Write Single Register
             elif frame['fc'] == 6:
                 reg_addr, reg_val = struct.unpack('>HH', frame['payload'][:4])
                 changed, old_val = set_register(reg_addr, reg_val)
 
                 if changed:
-                    if reg_addr == REG_POWER:
-                        print(f" [HA WRITE] Set Power: {old_val}% -> {reg_val}%")
-                    elif reg_addr == REG_TEMP_SET:
-                        print(f" [HA WRITE] Set Temp: {old_val/10.0}°C -> {reg_val/10.0}°C")
-                    elif reg_addr == REG_MODE:
-                        modes = {0:"OFF", 1:"AUTO", 2:"VENT", 3:"CIRC+VENT", 4:"CIRC"}
-                        mode_str = modes.get(reg_val, str(reg_val))
-                        print(f" [HA WRITE] Set Mode: {mode_str}")
+                    # Power control register (10700)
+                    if reg_addr == REG_POWER_CTRL:
+                        print(f" [WRITE] Power CTRL trigger: {old_val} -> {reg_val}")
+                    # Power target register (10708)
+                    elif reg_addr == REG_POWER_WRITE:
+                        print(f" [WRITE] Power target: {old_val}% -> {reg_val}%")
+
+                    # Temperature control register (10702)
+                    elif reg_addr == REG_TEMP_CTRL:
+                        print(f" [WRITE] Temp CTRL trigger: {old_val} -> {reg_val}")
+                    # Temperature target register (10710)
+                    elif reg_addr == REG_TEMP_WRITE:
+                        print(f" [WRITE] Temp target: {old_val/10.0}°C -> {reg_val/10.0}°C")
+
+                    # Mode control register (10701)
+                    elif reg_addr == REG_MODE_CTRL:
+                        print(f" [WRITE] Mode CTRL trigger: {old_val} -> {reg_val}")
+                    # Mode target register (10709)
+                    elif reg_addr == REG_MODE_WRITE:
+                        mode_str = MODE_VALUES.get(reg_val, str(reg_val))
+                        print(f" [WRITE] Mode target: {MODE_VALUES.get(old_val, str(old_val))} -> {mode_str}")
+
                     else:
-                        print(f" [HA WRITE] Reg {reg_addr}: {old_val} -> {reg_val}")
+                        print(f" [WRITE] Reg {reg_addr}: {old_val} -> {reg_val}")
 
                 # Echo back per Modbus spec
                 resp_payload = struct.pack('>HH', reg_addr, reg_val)
@@ -128,10 +228,12 @@ def handle_client(conn, addr):
             elif frame['fc'] == 16:
                 start_addr, count, byte_count = struct.unpack('>HHB', frame['payload'][:5])
                 vals_data = frame['payload'][5:]
+
                 for i in range(count):
                     val = struct.unpack('>H', vals_data[i*2:(i*2)+2])[0]
-                    set_register(start_addr + i, val)
-                    print(f" [HA WRITE MULTI] {start_addr+i} = {val}")
+                    changed, old_val = set_register(start_addr + i, val)
+                    if changed:
+                        print(f" [WRITE MULTI] {start_addr+i} = {val} (was {old_val})")
 
                 resp_payload = struct.pack('>HH', start_addr, count)
 
@@ -150,19 +252,28 @@ def start_server():
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     try:
-        # Note: Port 502 requires sudo/admin rights
         server.bind((HOST, PORT))
     except PermissionError:
         print(f"!!! PERMISSION DENIED !!!")
         print(f"You are trying to bind port {PORT} (Standard Modbus).")
-        print(f"Please run this script with 'sudo python3 script_name.py'")
+        print(f"Please run this script with 'sudo python3 atrea_sim_ha.py'")
         return
 
     server.listen(5)
     print(f"==========================================")
-    print(f" ATREA RD5 SIMULATOR (Home Assistant Mode)")
+    print(f" ATREA RD5 SIMULATOR")
+    print(f" Protocol: New multi-step write style")
     print(f" Listen: {HOST}:{PORT}")
-    print(f" Map:    10704 (Power), 10705 (Mode), 10706 (Temp)")
+    print(f"")
+    print(f" Read Registers:")
+    print(f"   10704: Power (%)")
+    print(f"   10705: Mode (Enum)")
+    print(f"   10706: Temperature (°C, scale 0.1)")
+    print(f"")
+    print(f" Write Protocol:")
+    print(f"   Power:   10700(ctrl) -> 10708(value)")
+    print(f"   Mode:    10701(ctrl) -> 10709(value)")
+    print(f"   Temp:     10702(ctrl) -> 10710(value)")
     print(f"==========================================")
 
     # Background thread to simulate temp changes

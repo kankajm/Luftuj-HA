@@ -142,7 +142,7 @@ export function createSettingsRouter(mqttService: MqttService, logger: Logger) {
 
   // Language
   router.get("/language", (_request: Request, response: Response) => {
-    const language = getAppSetting(LANGUAGE_SETTING_KEY) ?? "en";
+    const language = getAppSetting(LANGUAGE_SETTING_KEY) ?? "cs";
     response.json({ language });
   });
 
