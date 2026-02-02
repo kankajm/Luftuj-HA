@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm --prefix docs run build",
+    "docs:start": "npm --prefix docs run start"
   },
   "dependencies": {
     "@mantine/core": "^7.17.8",

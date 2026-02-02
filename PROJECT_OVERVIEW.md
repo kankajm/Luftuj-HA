@@ -25,6 +25,7 @@
     - `services/database.ts` – SQLite bootstrap + helpers via Bun's `bun:sqlite` API. Default DB lives at `/data/luftator.db` inside Supervisor; local dev falls back to `addon/rootfs/data/luftator.db` or `LUFTATOR_DB_PATH` env override.
   - `addon/config.yaml` & `build.yaml` – Supervisor metadata (note the product/company naming).
   - `addon/DOCS.md` – Add-on documentation (aligned with this overview).
+- `docs/` – Modern documentation site using Fumadocs (Next.js).
 
 ## Frontend Stack Notes
 
